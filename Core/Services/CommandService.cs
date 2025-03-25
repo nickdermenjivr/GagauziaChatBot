@@ -7,7 +7,16 @@ namespace GagauziaChatBot.Core.Services;
 
 public class CommandService(ITelegramBotClient botClient) : ICommandService
 {
-    
+    private static class ButtonTitles
+    {
+        public const string MainMenu = "🏠 Главное меню";
+        public const string Help = "ℹ️ Помощь";
+        public const string NewPost = "📋 Разместить объявление";
+        public const string Cancel = "❌ Отмена";
+        public const string Carpooling = "🚗 Попутчики";
+        public const string Marketplace = "🛒 Рынок";
+    }
+
     public async Task HandleCommand(Message message, CancellationToken cancellationToken)
     {
         if (message.Text == null) return;
@@ -17,25 +26,33 @@ public class CommandService(ITelegramBotClient botClient) : ICommandService
             case "/start":
                 await ShowStartMenu(message.Chat.Id, cancellationToken);
                 break;
-
             case "/menu":
-            case "📋 Главное меню":
+            case ButtonTitles.MainMenu:
+            case ButtonTitles.Cancel:
                 await ShowMainMenu(message.Chat.Id, cancellationToken);
                 break;
-
             case "/help":
-            case "ℹ️ Помощь":
+            case ButtonTitles.Help:
                 await ShowHelpMenu(message.Chat.Id, cancellationToken);
+                break;
+            case ButtonTitles.NewPost:
+                await ShowChooseCategory(message.Chat.Id, cancellationToken);
+                break;
+            case ButtonTitles.Carpooling:
+                await ShowCarpoolingMenu(message.Chat.Id, cancellationToken);
+                break;
+            case ButtonTitles.Marketplace:
+                await ShowMarketplaceMenu(message.Chat.Id, cancellationToken);
                 break;
         }
     }
 
-    private async Task ShowStartMenu(long chatId, CancellationToken cancellationToken)
+    private async Task ShowStartMenu(long chatId, CancellationToken ct)
     {
         var keyboard = new ReplyKeyboardMarkup(new[]
         {
-            [new KeyboardButton("📋 Главное меню")],
-            new[] { new KeyboardButton("ℹ️ Помощь") }
+            new[] { new KeyboardButton(ButtonTitles.MainMenu) },
+            new[] { new KeyboardButton(ButtonTitles.Help) }
         })
         {
             ResizeKeyboard = true,
@@ -47,17 +64,16 @@ public class CommandService(ITelegramBotClient botClient) : ICommandService
             text: "👋 Добро пожаловать!\n\nЯ ваш бот-помощник.",
             replyMarkup: keyboard,
             parseMode: ParseMode.Html,
-            cancellationToken: cancellationToken
+            cancellationToken: ct
         );
     }
 
-    private async Task ShowMainMenu(long chatId, CancellationToken cancellationToken)
+    private async Task ShowMainMenu(long chatId, CancellationToken ct)
     {
         var keyboard = new ReplyKeyboardMarkup(new[]
         {
-            [new KeyboardButton("📋 Каталог"), new KeyboardButton("🛒 Корзина")],
-            [new KeyboardButton("📞 Контакты"), new KeyboardButton("⚙️ Настройки")],
-            new[] { new KeyboardButton("ℹ️ Помощь") }
+            new[] {new KeyboardButton(ButtonTitles.NewPost)},
+            new[] {new KeyboardButton(ButtonTitles.Help)}
         })
         {
             ResizeKeyboard = true,
@@ -66,17 +82,60 @@ public class CommandService(ITelegramBotClient botClient) : ICommandService
 
         await botClient.SendMessage(
             chatId: chatId,
-            text: "<b>🏠 Главное меню</b>\n\nВыберите раздел:",
+            text: "🏠 <b>Главное меню</b>",
             replyMarkup: keyboard,
             parseMode: ParseMode.Html,
-            cancellationToken: cancellationToken
+            cancellationToken: ct
         );
     }
-    private async Task ShowHelpMenu(long chatId, CancellationToken cancellationToken)
+
+    private async Task ShowChooseCategory(long chatId, CancellationToken ct)
     {
         var keyboard = new ReplyKeyboardMarkup(new[]
         {
-            new[] { new KeyboardButton("📋 Главное меню") }
+            new[] {new KeyboardButton(ButtonTitles.Carpooling)},
+            new[] {new KeyboardButton(ButtonTitles.Marketplace)},
+            new[] {new KeyboardButton(ButtonTitles.Cancel)}
+        })
+        {
+            ResizeKeyboard = true,
+            OneTimeKeyboard = false
+        };
+
+        await botClient.SendMessage(
+            chatId: chatId,
+            text: "📋 <b>Выберите категорию</b>",
+            replyMarkup: keyboard,
+            parseMode: ParseMode.Html,
+            cancellationToken: ct
+        );
+    }
+
+    private async Task ShowCarpoolingMenu(long chatId, CancellationToken ct)
+    {
+        await botClient.SendMessage(
+            chatId: chatId,
+            text: "🚗 <b>Раздел Попутчики</b>\n\nЗдесь вы можете найти попутчиков...",
+            parseMode: ParseMode.Html,
+            cancellationToken: ct
+        );
+    }
+
+    private async Task ShowMarketplaceMenu(long chatId, CancellationToken ct)
+    {
+        await botClient.SendMessage(
+            chatId: chatId,
+            text: "🛒 <b>Раздел Рынок</b>\n\nЗдесь вы можете купить/продать товары...",
+            parseMode: ParseMode.Html,
+            cancellationToken: ct
+        );
+    }
+
+    private async Task ShowHelpMenu(long chatId, CancellationToken ct)
+    {
+        var keyboard = new ReplyKeyboardMarkup(new[]
+        {
+            new[] {new KeyboardButton(ButtonTitles.MainMenu)}
         })
         {
             ResizeKeyboard = true,
@@ -86,11 +145,11 @@ public class CommandService(ITelegramBotClient botClient) : ICommandService
         await botClient.SendMessage(
             chatId: chatId,
             text: "📌 Доступные команды:\n\n" +
-                  "/start - Начать работу\n" +
-                  "/menu - Главное меню\n" +
-                  "/help - Помощь",
+                 "/start - Начать работу\n" +
+                 "/menu - Главное меню\n" +
+                 "/help - Помощь",
             replyMarkup: keyboard,
-            cancellationToken: cancellationToken
+            cancellationToken: ct
         );
     }
 }
