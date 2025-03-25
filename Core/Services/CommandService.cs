@@ -9,6 +9,9 @@ public class CommandService(ITelegramBotClient botClient) : ICommandService
 {
     private CarpoolingData _carpoolingData;
     private CarpoolingState _carpoolingState = CarpoolingState.Default;
+    private const long GagauziaChatId = -1002696920941;
+    private const int CarpoolingThreadId = 15;
+
     private struct CarpoolingData
     {
         public string Date;
@@ -16,6 +19,7 @@ public class CommandService(ITelegramBotClient botClient) : ICommandService
         public string From;
         public string To;
         public string Phone;
+        public string Result;
     }
     private enum CarpoolingState
     {
@@ -94,15 +98,10 @@ public class CommandService(ITelegramBotClient botClient) : ICommandService
             case not null when _carpoolingState == CarpoolingState.AwaitingCarpoolingPhone:
                 _carpoolingData.Phone = message.Text;
                 _carpoolingState = CarpoolingState.AwaitingCarPoolingResult;
-                await ShowCarpoolingResult(message.Chat.Username!, message.Chat.Id, cancellationToken);
+                _carpoolingData.Result = await ShowCarpoolingResult(message.Chat.Username!, message.Chat.Id, cancellationToken);
                 break;
             case ButtonTitles.PostCarpooling:
-                await botClient.SendMessage(
-                    chatId: message.Chat.Id,
-                    text: "Ваше объявление опубликовано в группе 'Попутчики!'",
-                    parseMode: ParseMode.Html,
-                    cancellationToken: cancellationToken
-                );
+                await PostCarpooling(message.Chat.Id, GagauziaChatId, CarpoolingThreadId, _carpoolingData.Result, cancellationToken);
                 break;
                 
             // Marketplace
@@ -126,7 +125,7 @@ public class CommandService(ITelegramBotClient botClient) : ICommandService
 
         await botClient.SendMessage(
             chatId: chatId,
-            text: $"👋 Добро пожаловать!\n\nЯ ваш бот-помощник.\nЧат: {chatId}",
+            text: $"👋 Добро пожаловать!\n\nЯ ваш бот-помощник.",
             replyMarkup: keyboard,
             parseMode: ParseMode.Html,
             cancellationToken: ct
@@ -282,7 +281,7 @@ public class CommandService(ITelegramBotClient botClient) : ICommandService
             cancellationToken: ct
         );
     }
-    private async Task ShowCarpoolingResult(string username, long chatId, CancellationToken ct)
+    private async Task<string> ShowCarpoolingResult(string username, long chatId, CancellationToken ct)
     {
         var keyboard = new ReplyKeyboardMarkup(new[]
         {
@@ -294,7 +293,7 @@ public class CommandService(ITelegramBotClient botClient) : ICommandService
             OneTimeKeyboard = false
         };
 
-        var text = @$"<b>Ваше объявление:</b>
+        var text = @$"
 <b>🚗 Здравствуйте, дорогие попутчики! 🚗</b>
 
 <b>📅 Когда:</b> {_carpoolingData.Date}
@@ -308,13 +307,30 @@ public class CommandService(ITelegramBotClient botClient) : ICommandService
         
         await botClient.SendMessage(
             chatId: chatId,
-            text: text,
+            text: $"<b>Ваше объявление:</b>{text}",
             replyMarkup: keyboard,
             parseMode: ParseMode.Html,
             cancellationToken: ct
         );
+        return text;
     }
 
+    private async Task PostCarpooling(long chatId, long postChatId, int? postThreadId, string text, CancellationToken ct)
+    {
+        await botClient.SendMessage(
+            chatId: chatId,
+            "Ваше объявление опубликовано в группе 'Попутчики!'",
+            parseMode: ParseMode.Html,
+            cancellationToken: ct
+        );
+        
+        await botClient.SendMessage(
+            chatId: postChatId,
+            messageThreadId: postThreadId,
+            text: text,
+            parseMode: ParseMode.Html,
+            cancellationToken: ct);
+    }
     private async Task ShowMarketplaceMenu(long chatId, CancellationToken ct)
     {
         await botClient.SendMessage(
