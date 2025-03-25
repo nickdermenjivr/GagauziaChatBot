@@ -46,7 +46,7 @@ public class CommandService(ITelegramBotClient botClient) : ICommandService
     public async Task HandleCommand(Message message, CancellationToken cancellationToken)
     {
         if (message.Text == null) return;
-
+        
         switch (message.Text)
         {
             case "/start":
@@ -55,6 +55,8 @@ public class CommandService(ITelegramBotClient botClient) : ICommandService
             case "/menu":
             case ButtonTitles.MainMenu:
             case ButtonTitles.Cancel:
+                _carpoolingData = new CarpoolingData();
+                _carpoolingState = CarpoolingState.Default;
                 await ShowMainMenu(message.Chat.Id, cancellationToken);
                 break;
             case "/help":
@@ -125,7 +127,7 @@ public class CommandService(ITelegramBotClient botClient) : ICommandService
 
         await botClient.SendMessage(
             chatId: chatId,
-            text: $"👋 Добро пожаловать!\n\nЯ ваш бот-помощник.",
+            text: "👋 Добро пожаловать!\n\nЯ ваш бот-помощник,",
             replyMarkup: keyboard,
             parseMode: ParseMode.Html,
             cancellationToken: ct
@@ -317,10 +319,19 @@ public class CommandService(ITelegramBotClient botClient) : ICommandService
 
     private async Task PostCarpooling(long chatId, long postChatId, int? postThreadId, string text, CancellationToken ct)
     {
+        var keyboard = new ReplyKeyboardMarkup(new[]
+        {
+            new[] {new KeyboardButton(ButtonTitles.MainMenu)}
+        })
+        {
+            ResizeKeyboard = true,
+            OneTimeKeyboard = false
+        };
         await botClient.SendMessage(
             chatId: chatId,
             "Ваше объявление опубликовано в группе 'Попутчики!'",
             parseMode: ParseMode.Html,
+            replyMarkup: keyboard,
             cancellationToken: ct
         );
         
