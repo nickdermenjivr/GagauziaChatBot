@@ -42,11 +42,10 @@ public class CommandService(ITelegramBotClient botClient) : ICommandService
         public const string CarpoolingDataTomorrow = "🚶 Завтра";
         public const string Marketplace = "🛒 Рынок";
     }
-
     public async Task HandleCommand(Message message, CancellationToken cancellationToken)
     {
         if (message.Text == null) return;
-        
+
         switch (message.Text)
         {
             case "/start":
