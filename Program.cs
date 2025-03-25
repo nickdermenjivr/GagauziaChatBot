@@ -1,21 +1,44 @@
-﻿using Telegram.Bot;
+﻿using GagauziaChatBot.Core.Models;
+using GagauziaChatBot.Core.Services;
+using Telegram.Bot;
 using Telegram.Bot.Types;
-using Telegram.Bot.Types.Enums;
 
-using var cts = new CancellationTokenSource();
-var bot = new TelegramBotClient("7598881267:AAFFEJnJOgV-6evab2ElT2zJd11jc01s4AQ", cancellationToken: cts.Token);
-var me = await bot.GetMe();
-bot.OnMessage += OnMessage;
+namespace GagauziaChatBot;
 
-Console.WriteLine($"@{me.Username} is running... Press Enter to terminate");
-Console.ReadLine();
-cts.Cancel(); // stop the bot
-
-// method that handle messages received by the bot:
-async Task OnMessage(Message msg, UpdateType type)
+internal static class Program
 {
-    if (msg.Text is null) return;	// we only handle Text messages here
-    Console.WriteLine($"Received {type} '{msg.Text}' in {msg.Chat}");
-    // let's echo back received text in the chat
-    await bot.SendMessage(msg.Chat, $"{msg.From} said: {msg.Text}");
+    private static async Task Main()
+    {
+        var settings = new BotSettings();
+        var botClient = new TelegramBotClient(settings.BotToken);
+        var commandService = new CommandService(botClient);
+        var botService = new BotService(botClient, commandService);
+
+        var cts = new CancellationTokenSource();
+
+        await RegisterBotCommands(botClient, cts.Token);
+        botService.StartReceiving(cts.Token);
+
+        var me = await botClient.GetMe(cancellationToken: cts.Token);
+        Console.WriteLine($"Бот @{me.Username} запущен!");
+
+        await Task.Delay(-1, cts.Token);
+    }
+
+    private static async Task RegisterBotCommands(ITelegramBotClient botClient, CancellationToken cancellationToken)
+    {
+        var commands = new List<BotCommand>
+        {
+            new() { Command = "start", Description = "Запустить бота" },
+            new() { Command = "menu", Description = "Главное меню" },
+            new() { Command = "help", Description = "Помощь" }
+        };
+
+        await botClient.SetMyCommands(
+            commands: commands,
+            scope: null,
+            languageCode: null,
+            cancellationToken: cancellationToken
+        );
+    }
 }
