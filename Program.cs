@@ -29,9 +29,7 @@ internal static class Program
     {
         var commands = new List<BotCommand>
         {
-            new() { Command = "start", Description = "Запустить бота" },
             new() { Command = "menu", Description = "Главное меню" },
-            new() { Command = "help", Description = "Помощь" }
         };
 
         await botClient.SetMyCommands(

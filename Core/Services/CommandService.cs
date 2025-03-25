@@ -63,7 +63,6 @@ public class CommandService(ITelegramBotClient botClient) : ICommandService
     private static class ButtonTitles
     {
         public const string MainMenu = "🏠 Главное меню";
-        public const string Help = "ℹ️ Помощь";
         public const string NewPost = "📋 Разместить объявление";
         public const string PostCarpooling = "✅ Отправить попутчикам";
         public const string PostMarketplace = "✅ Опубликовать на рынке";
@@ -95,18 +94,11 @@ public class CommandService(ITelegramBotClient botClient) : ICommandService
 
         switch (message.Text)
         {
-            case "/start":
-                await ShowStartMenu(message.Chat.Id, cancellationToken);
-                break;
             case "/menu":
             case ButtonTitles.MainMenu:
             case ButtonTitles.Cancel:
                 ResetAllStates();
                 await ShowMainMenu(message.Chat.Id, cancellationToken);
-                break;
-            case "/help":
-            case ButtonTitles.Help:
-                await ShowHelpMenu(message.Chat.Id, cancellationToken);
                 break;
             
             case ButtonTitles.NewPost:
@@ -193,33 +185,11 @@ public class CommandService(ITelegramBotClient botClient) : ICommandService
     }
 
     #region Common Methods
-    private async Task ShowStartMenu(long chatId, CancellationToken ct)
-    {
-        var keyboard = new ReplyKeyboardMarkup(new[]
-        {
-            new[] { new KeyboardButton(ButtonTitles.MainMenu) },
-            new[] { new KeyboardButton(ButtonTitles.Help) }
-        })
-        {
-            ResizeKeyboard = true,
-            OneTimeKeyboard = false
-        };
-
-        await botClient.SendMessage(
-            chatId: chatId,
-            text: "👋 Добро пожаловать!\n\nЯ ваш бот-помощник,",
-            replyMarkup: keyboard,
-            parseMode: ParseMode.Html,
-            cancellationToken: ct
-        );
-    }
-
     private async Task ShowMainMenu(long chatId, CancellationToken ct)
     {
         var keyboard = new ReplyKeyboardMarkup(new[]
         {
             new[] {new KeyboardButton(ButtonTitles.NewPost)},
-            new[] {new KeyboardButton(ButtonTitles.Help)}
         })
         {
             ResizeKeyboard = true,
@@ -256,28 +226,7 @@ public class CommandService(ITelegramBotClient botClient) : ICommandService
             cancellationToken: ct
         );
     }
-
-    private async Task ShowHelpMenu(long chatId, CancellationToken ct)
-    {
-        var keyboard = new ReplyKeyboardMarkup(new[]
-        {
-            new[] {new KeyboardButton(ButtonTitles.MainMenu)}
-        })
-        {
-            ResizeKeyboard = true,
-            OneTimeKeyboard = false
-        };
-
-        await botClient.SendMessage(
-            chatId: chatId,
-            text: "📌 Доступные команды:\n\n" +
-                 "/start - Начать работу\n" +
-                 "/menu - Главное меню\n" +
-                 "/help - Помощь",
-            replyMarkup: keyboard,
-            cancellationToken: ct
-        );
-    }
+    
     #endregion
 
     #region Carpooling Methods
