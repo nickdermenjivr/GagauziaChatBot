@@ -7,13 +7,35 @@ namespace GagauziaChatBot.Core.Services;
 
 public class CommandService(ITelegramBotClient botClient) : ICommandService
 {
+    private CarpoolingData _carpoolingData;
+    private CarpoolingState _carpoolingState = CarpoolingState.Default;
+    private struct CarpoolingData
+    {
+        public string Date;
+        public string Time;
+        public string From;
+        public string To;
+        public string Phone;
+    }
+    private enum CarpoolingState
+    {
+        Default,
+        AwaitingCarpoolingTime,
+        AwaitingCarpoolingFrom,
+        AwaitingCarpoolingTo,
+        AwaitingCarpoolingPhone,
+        AwaitingCarPoolingResult
+    }
     private static class ButtonTitles
     {
         public const string MainMenu = "🏠 Главное меню";
         public const string Help = "ℹ️ Помощь";
         public const string NewPost = "📋 Разместить объявление";
+        public const string PostCarpooling = "✅ Отправить попутчикам";
         public const string Cancel = "❌ Отмена";
         public const string Carpooling = "🚗 Попутчики";
+        public const string CarpoolingDataToday = "🏃 Сегодня";
+        public const string CarpoolingDataTomorrow = "🚶 Завтра";
         public const string Marketplace = "🛒 Рынок";
     }
 
@@ -35,12 +57,55 @@ public class CommandService(ITelegramBotClient botClient) : ICommandService
             case ButtonTitles.Help:
                 await ShowHelpMenu(message.Chat.Id, cancellationToken);
                 break;
+            
+            
             case ButtonTitles.NewPost:
                 await ShowChooseCategory(message.Chat.Id, cancellationToken);
                 break;
+            // Carpooling
             case ButtonTitles.Carpooling:
                 await ShowCarpoolingMenu(message.Chat.Id, cancellationToken);
                 break;
+            case ButtonTitles.CarpoolingDataToday:
+                _carpoolingData.Date = "Сегодня";
+                _carpoolingState = CarpoolingState.AwaitingCarpoolingTime;
+                await ShowCarpoolingFillTime(message.Chat.Id, cancellationToken);
+                break;
+            case ButtonTitles.CarpoolingDataTomorrow:
+                _carpoolingData.Date = "Завтра";
+                _carpoolingState = CarpoolingState.AwaitingCarpoolingTime;
+                await ShowCarpoolingFillTime(message.Chat.Id, cancellationToken);
+                break;
+            case not null when _carpoolingState == CarpoolingState.AwaitingCarpoolingTime:
+                _carpoolingData.Time = message.Text;
+                _carpoolingState = CarpoolingState.AwaitingCarpoolingFrom;
+                await ShowCarpoolingFillFrom(message.Chat.Id, cancellationToken);
+                break;
+            case not null when _carpoolingState == CarpoolingState.AwaitingCarpoolingFrom:
+                _carpoolingData.From = message.Text;
+                _carpoolingState = CarpoolingState.AwaitingCarpoolingTo;
+                await ShowCarpoolingFillTo(message.Chat.Id, cancellationToken);
+                break;
+            case not null when _carpoolingState == CarpoolingState.AwaitingCarpoolingTo:
+                _carpoolingData.To = message.Text;
+                _carpoolingState = CarpoolingState.AwaitingCarpoolingPhone;
+                await ShowCarpoolingFillPhone(message.Chat.Id, cancellationToken);
+                break;
+            case not null when _carpoolingState == CarpoolingState.AwaitingCarpoolingPhone:
+                _carpoolingData.Phone = message.Text;
+                _carpoolingState = CarpoolingState.AwaitingCarPoolingResult;
+                await ShowCarpoolingResult(message.Chat.Username!, message.Chat.Id, cancellationToken);
+                break;
+            case ButtonTitles.PostCarpooling:
+                await botClient.SendMessage(
+                    chatId: message.Chat.Id,
+                    text: "Ваше объявление опубликовано в группе 'Попутчики!'",
+                    parseMode: ParseMode.Html,
+                    cancellationToken: cancellationToken
+                );
+                break;
+                
+            // Marketplace
             case ButtonTitles.Marketplace:
                 await ShowMarketplaceMenu(message.Chat.Id, cancellationToken);
                 break;
@@ -61,7 +126,7 @@ public class CommandService(ITelegramBotClient botClient) : ICommandService
 
         await botClient.SendMessage(
             chatId: chatId,
-            text: "👋 Добро пожаловать!\n\nЯ ваш бот-помощник.",
+            text: $"👋 Добро пожаловать!\n\nЯ ваш бот-помощник.\nЧат: {chatId}",
             replyMarkup: keyboard,
             parseMode: ParseMode.Html,
             cancellationToken: ct
@@ -110,12 +175,141 @@ public class CommandService(ITelegramBotClient botClient) : ICommandService
             cancellationToken: ct
         );
     }
-
     private async Task ShowCarpoolingMenu(long chatId, CancellationToken ct)
     {
+        var messageText = @"🚗 <b>Раздел Попутчики</b>
+
+Следуйте инструкциям, чтобы указать все необходимые детали:
+1. 📅 <b>Дата</b> (сегодня/завтра)
+2. ⌛ <b>Время</b>
+3. 🚩 <b>Пункт отправления</b>
+4. 🏁 <b>Пункт прибытия</b>
+5. ☎ <b>Номер телефона</b>
+
+Выберите дату:";
+
+        var keyboard = new ReplyKeyboardMarkup(new[]
+        {
+            [new KeyboardButton(ButtonTitles.CarpoolingDataToday), new KeyboardButton(ButtonTitles.CarpoolingDataTomorrow)],
+            new[] {new KeyboardButton(ButtonTitles.Cancel)}
+        })
+        {
+            ResizeKeyboard = true,
+            OneTimeKeyboard = false
+        };
+
         await botClient.SendMessage(
             chatId: chatId,
-            text: "🚗 <b>Раздел Попутчики</b>\n\nЗдесь вы можете найти попутчиков...",
+            text: messageText,
+            replyMarkup: keyboard,
+            parseMode: ParseMode.Html,
+            cancellationToken: ct
+        );
+    }
+    private async Task ShowCarpoolingFillTime(long chatId, CancellationToken ct)
+    {
+        var keyboard = new ReplyKeyboardMarkup(new[]
+        {
+            new[] {new KeyboardButton(ButtonTitles.Cancel)}
+        })
+        {
+            ResizeKeyboard = true,
+            OneTimeKeyboard = false
+        };
+
+        await botClient.SendMessage(
+            chatId: chatId,
+            text: "<b>⌛ Укажите время:</b>",
+            replyMarkup: keyboard,
+            parseMode: ParseMode.Html,
+            cancellationToken: ct
+        );
+    }
+    private async Task ShowCarpoolingFillFrom(long chatId, CancellationToken ct)
+    {
+        var keyboard = new ReplyKeyboardMarkup(new[]
+        {
+            new[] {new KeyboardButton(ButtonTitles.Cancel)}
+        })
+        {
+            ResizeKeyboard = true,
+            OneTimeKeyboard = false
+        };
+
+        await botClient.SendMessage(
+            chatId: chatId,
+            text: "<b>🚩 Укажите пункт отправления:</b>",
+            replyMarkup: keyboard,
+            parseMode: ParseMode.Html,
+            cancellationToken: ct
+        );
+    }
+    private async Task ShowCarpoolingFillTo(long chatId, CancellationToken ct)
+    {
+        var keyboard = new ReplyKeyboardMarkup(new[]
+        {
+            new[] {new KeyboardButton(ButtonTitles.Cancel)}
+        })
+        {
+            ResizeKeyboard = true,
+            OneTimeKeyboard = false
+        };
+
+        await botClient.SendMessage(
+            chatId: chatId,
+            text: "<b>🏁 Укажите пункт назначения:</b>",
+            replyMarkup: keyboard,
+            parseMode: ParseMode.Html,
+            cancellationToken: ct
+        );
+    }
+    private async Task ShowCarpoolingFillPhone(long chatId, CancellationToken ct)
+    {
+        var keyboard = new ReplyKeyboardMarkup(new[]
+        {
+            new[] {new KeyboardButton(ButtonTitles.Cancel)}
+        })
+        {
+            ResizeKeyboard = true,
+            OneTimeKeyboard = false
+        };
+
+        await botClient.SendMessage(
+            chatId: chatId,
+            text: "<b>☎ Укажите номер телефона:</b>",
+            replyMarkup: keyboard,
+            parseMode: ParseMode.Html,
+            cancellationToken: ct
+        );
+    }
+    private async Task ShowCarpoolingResult(string username, long chatId, CancellationToken ct)
+    {
+        var keyboard = new ReplyKeyboardMarkup(new[]
+        {
+            new[] {new KeyboardButton(ButtonTitles.PostCarpooling)},
+            new[] {new KeyboardButton(ButtonTitles.Cancel)}
+        })
+        {
+            ResizeKeyboard = true,
+            OneTimeKeyboard = false
+        };
+
+        var text = @$"<b>Ваше объявление:</b>
+<b>🚗 Здравствуйте, дорогие попутчики! 🚗</b>
+
+<b>📅 Когда:</b> {_carpoolingData.Date}
+<b>⏰ Во сколько:</b> {_carpoolingData.Time}
+<b>📍 Откуда:</b> {_carpoolingData.From}
+<b>🏁 Куда:</b> {_carpoolingData.To}
+<b>📲 Контакты:</b> +373{_carpoolingData.Phone}
+<b>💌👉 @{username}</b>
+
+<i>✨ Счастливого пути! ✨</i>";
+        
+        await botClient.SendMessage(
+            chatId: chatId,
+            text: text,
+            replyMarkup: keyboard,
             parseMode: ParseMode.Html,
             cancellationToken: ct
         );
