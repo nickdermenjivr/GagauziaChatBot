@@ -1,5 +1,6 @@
-﻿using GagauziaChatBot.Core.Models;
+﻿using GagauziaChatBot.Core.Configuration;
 using GagauziaChatBot.Core.Services;
+using GagauziaChatBot.Core.Services.CommandsService;
 using Telegram.Bot;
 using Telegram.Bot.Types;
 
@@ -9,8 +10,7 @@ internal static class Program
 {
     private static async Task Main()
     {
-        var settings = new BotSettings();
-        var botClient = new TelegramBotClient(settings.BotToken);
+        var botClient = new TelegramBotClient(TelegramConstants.BotToken);
         var commandService = new CommandService(botClient);
         var botService = new BotService(botClient, commandService);
 

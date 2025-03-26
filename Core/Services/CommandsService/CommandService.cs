@@ -1,11 +1,12 @@
+using GagauziaChatBot.Core.Configuration;
+using GagauziaChatBot.Core.Services.CommandsService.PostHandlers;
 using Telegram.Bot;
+using Telegram.Bot.Exceptions;
 using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
 using Telegram.Bot.Types.ReplyMarkups;
-using GagauziaChatBot.Core.Services.PostHandlers;
-using Telegram.Bot.Exceptions;
 
-namespace GagauziaChatBot.Core.Services;
+namespace GagauziaChatBot.Core.Services.CommandsService;
 
 public class CommandService : ICommandService
 {
@@ -199,7 +200,7 @@ public class CommandService : ICommandService
                 chatId: message.Chat.Id,
                 userId: message.From!.Id,
                 permissions: new ChatPermissions { CanSendMessages = false },
-                untilDate: DateTime.UtcNow.AddMinutes(0.3),
+                untilDate: DateTime.UtcNow.AddMinutes(1),
                 cancellationToken: ct);
 
             var chatInfo = await _botClient.GetChat(message.Chat.Id, ct);

@@ -1,3 +1,4 @@
+using GagauziaChatBot.Core.Services.CommandsService;
 using Telegram.Bot;
 using Telegram.Bot.Polling;
 using Telegram.Bot.Types;

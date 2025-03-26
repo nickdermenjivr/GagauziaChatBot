@@ -1,6 +1,6 @@
 ﻿using Telegram.Bot.Types;
 
-namespace GagauziaChatBot.Core.Services;
+namespace GagauziaChatBot.Core.Services.CommandsService;
 
 public interface ICommandService
 {

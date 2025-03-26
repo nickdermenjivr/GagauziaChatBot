@@ -1,7 +1,8 @@
-﻿namespace GagauziaChatBot.Core.Services;
+﻿namespace GagauziaChatBot.Core.Configuration;
 
 public static class TelegramConstants
 {
+    public static string BotToken { get; set; } = "7598881267:AAFFEJnJOgV-6evab2ElT2zJd11jc01s4AQ";
     public static class ButtonTitles
     {
         public const string MainMenu = "🏠 Главное меню";

@@ -1,9 +1,10 @@
-﻿using Telegram.Bot;
+﻿using GagauziaChatBot.Core.Configuration;
+using Telegram.Bot;
 using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
 using Telegram.Bot.Types.ReplyMarkups;
 
-namespace GagauziaChatBot.Core.Services.PostHandlers;
+namespace GagauziaChatBot.Core.Services.CommandsService.PostHandlers;
 
 public abstract class BasePostHandler(ITelegramBotClient botClient)
 {
