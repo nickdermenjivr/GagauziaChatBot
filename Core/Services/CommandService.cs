@@ -3,6 +3,7 @@ using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
 using Telegram.Bot.Types.ReplyMarkups;
 using GagauziaChatBot.Core.Services.PostHandlers;
+using Telegram.Bot.Exceptions;
 
 namespace GagauziaChatBot.Core.Services;
 
@@ -19,6 +20,9 @@ public class CommandService : ICommandService
 
     public async Task HandleCommand(Message message, CancellationToken cancellationToken)
     {
+        if (message.Type != MessageType.Text || message.From == null)
+            return;
+        
         try
         {
             if (await RestrictMessageInThreads(message, cancellationToken))
@@ -147,12 +151,19 @@ public class CommandService : ICommandService
 
     private async Task HandleError(long chatId, Exception ex, CancellationToken ct)
     {
-        await _botClient.SendMessage(
-            chatId: chatId,
-            text: "⚠️ Произошла ошибка при обработке запроса. Пожалуйста, попробуйте еще раз.",
-            cancellationToken: ct);
+        try
+        {
+            await _botClient.SendMessage(
+                chatId: chatId,
+                text: "⚠️ Произошла ошибка. Попробуйте позже.",
+                cancellationToken: ct);
+        }
+        catch
+        {
+            // ignored
+        }
 
-        Console.WriteLine($"Error in HandleCommand: {ex}");
+        Console.WriteLine($"Error: {ex.Message}\n{ex.StackTrace}");
     }
     
     private async Task<bool> RestrictMessageInThreads(Message message, CancellationToken ct)
@@ -161,26 +172,33 @@ public class CommandService : ICommandService
 
         if (!message.MessageThreadId.HasValue || !restrictedThreads.Contains(message.MessageThreadId.Value))
             return false;
+
         try
         {
             await _botClient.DeleteMessage(
                 chatId: message.Chat.Id,
                 messageId: message.MessageId,
                 cancellationToken: ct);
-            
-            var chatInfo = await _botClient.GetChat(
+
+            await _botClient.RestrictChatMember(
                 chatId: message.Chat.Id,
+                userId: message.From!.Id,
+                permissions: new ChatPermissions { CanSendMessages = false },
+                untilDate: DateTime.UtcNow.AddMinutes(5),
                 cancellationToken: ct);
+
+            var chatInfo = await _botClient.GetChat(message.Chat.Id, ct);
             await _botClient.SendMessage(
-                chatId: message.From!.Id,
-                text: $"✋ Сообщения в разделе {chatInfo.Title} разрешены только через бота @gagauziachat_bot.\n\n" +
-                      "Используйте команду /menu для выбора действия.",
+                chatId: message.From.Id,
+                text: $"✋ В разделе {chatInfo.Title} можно писать только через бота.\nИспользуйте /menu",
                 cancellationToken: ct);
+
+            return true;
         }
-        catch (Exception ex)
+        catch (ApiRequestException ex) when (ex.ErrorCode == 400 || ex.ErrorCode == 403)
         {
-            Console.WriteLine($"Ошибка при удалении: {ex.Message}");
+            Console.WriteLine($"Ошибка ограничения: {ex.Message}");
+            return false;
         }
-        return true;
     }
 }
