@@ -29,6 +29,10 @@ public class CommandService : ICommandService
             {
                 return;
             }
+            
+            if (message.Chat.Type != ChatType.Private)
+                return;
+            
             if (IsResetCommand(message.Text))
             {
                 await ResetAllHandlers(message.Chat.Id, cancellationToken);
@@ -168,9 +172,20 @@ public class CommandService : ICommandService
     
     private async Task<bool> RestrictMessageInThreads(Message message, CancellationToken ct)
     {
-        var restrictedThreads = new[] { TelegramConstants.CarpoolingThreadId, TelegramConstants.MarketplaceThreadId , TelegramConstants.GeneralThreadId};
+        var isMainThread = message.MessageThreadId == null 
+                            || message.MessageThreadId == TelegramConstants.MainThreadId;
 
-        if (!message.MessageThreadId.HasValue || !restrictedThreads.Contains(message.MessageThreadId.Value))
+        var restrictedThreadIds = new[] 
+        { 
+            TelegramConstants.CarpoolingThreadId,
+            TelegramConstants.MarketplaceThreadId
+        };
+
+        var shouldRestrict = isMainThread || 
+                              (message.MessageThreadId.HasValue && 
+                               restrictedThreadIds.Contains(message.MessageThreadId.Value));
+
+        if (!shouldRestrict)
             return false;
 
         try
@@ -184,13 +199,14 @@ public class CommandService : ICommandService
                 chatId: message.Chat.Id,
                 userId: message.From!.Id,
                 permissions: new ChatPermissions { CanSendMessages = false },
-                untilDate: DateTime.UtcNow.AddMinutes(2),
+                untilDate: DateTime.UtcNow.AddMinutes(0.3),
                 cancellationToken: ct);
 
             var chatInfo = await _botClient.GetChat(message.Chat.Id, ct);
             await _botClient.SendMessage(
                 chatId: message.From.Id,
-                text: $"✋ В разделе {chatInfo.Title} можно писать только через бота.\nИспользуйте /menu",
+                text: $"✋ В {(isMainThread ? "основном чате" : "разделе")} {chatInfo.Title} " +
+                      "можно писать только через бота.\nИспользуйте /menu",
                 cancellationToken: ct);
 
             return true;
