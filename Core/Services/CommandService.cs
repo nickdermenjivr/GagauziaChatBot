@@ -21,6 +21,10 @@ public class CommandService : ICommandService
     {
         try
         {
+            if (await RestrictMessageInThreads(message, cancellationToken))
+            {
+                return;
+            }
             if (IsResetCommand(message.Text))
             {
                 await ResetAllHandlers(message.Chat.Id, cancellationToken);
@@ -149,5 +153,34 @@ public class CommandService : ICommandService
             cancellationToken: ct);
 
         Console.WriteLine($"Error in HandleCommand: {ex}");
+    }
+    
+    private async Task<bool> RestrictMessageInThreads(Message message, CancellationToken ct)
+    {
+        var restrictedThreads = new[] { TelegramConstants.CarpoolingThreadId, TelegramConstants.MarketplaceThreadId };
+
+        if (!message.MessageThreadId.HasValue || !restrictedThreads.Contains(message.MessageThreadId.Value))
+            return false;
+        try
+        {
+            await _botClient.DeleteMessage(
+                chatId: message.Chat.Id,
+                messageId: message.MessageId,
+                cancellationToken: ct);
+            
+            var chatInfo = await _botClient.GetChat(
+                chatId: message.Chat.Id,
+                cancellationToken: ct);
+            await _botClient.SendMessage(
+                chatId: message.From!.Id,
+                text: $"✋ Сообщения в разделе {chatInfo.Title} разрешены только через бота @gagauziachat_bot.\n\n" +
+                      "Используйте команду /menu для выбора действия.",
+                cancellationToken: ct);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Ошибка при удалении: {ex.Message}");
+        }
+        return true;
     }
 }
