@@ -168,7 +168,7 @@ public class CommandService : ICommandService
     
     private async Task<bool> RestrictMessageInThreads(Message message, CancellationToken ct)
     {
-        var restrictedThreads = new[] { TelegramConstants.CarpoolingThreadId, TelegramConstants.MarketplaceThreadId };
+        var restrictedThreads = new[] { TelegramConstants.CarpoolingThreadId, TelegramConstants.MarketplaceThreadId , TelegramConstants.GeneralThreadId};
 
         if (!message.MessageThreadId.HasValue || !restrictedThreads.Contains(message.MessageThreadId.Value))
             return false;
@@ -184,7 +184,7 @@ public class CommandService : ICommandService
                 chatId: message.Chat.Id,
                 userId: message.From!.Id,
                 permissions: new ChatPermissions { CanSendMessages = false },
-                untilDate: DateTime.UtcNow.AddMinutes(5),
+                untilDate: DateTime.UtcNow.AddMinutes(2),
                 cancellationToken: ct);
 
             var chatInfo = await _botClient.GetChat(message.Chat.Id, ct);
