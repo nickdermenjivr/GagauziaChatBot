@@ -22,5 +22,6 @@ public static class TelegramConstants
     public const long GagauziaChatId = -1002696920941;
     public const int CarpoolingThreadId = 15;
     public const int MarketplaceThreadId = 18;
+    public const int NewsThreadId = 13;
     public static int? MainThreadId = null;
 }

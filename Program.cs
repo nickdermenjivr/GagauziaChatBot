@@ -36,7 +36,8 @@ internal class Program
         
         var httpClient = new HttpClient();
         var parser = new RssNewsParser(httpClient, rssUrl);
-        var newsTask = new NewsBackgroundTask(botClient, parser, TelegramConstants.GagauziaChatId, interval);
+        var cache = new NewsCache();
+        var newsTask = new NewsBackgroundTask(botClient, parser, cache, TelegramConstants.GagauziaChatId,TelegramConstants.NewsThreadId, interval);
 
         await RegisterBotCommands(botClient, cts.Token);
         botService.StartReceiving(cts.Token);
