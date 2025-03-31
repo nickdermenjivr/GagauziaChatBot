@@ -9,12 +9,13 @@
     </PropertyGroup>
 
     <ItemGroup>
+      <PackageReference Include="System.ServiceModel.Syndication" Version="9.0.3" />
+      <PackageReference Include="System.Xml.ReaderWriter" Version="4.3.1" />
       <PackageReference Include="Telegram.Bot" Version="22.4.4" />
     </ItemGroup>
 
     <ItemGroup>
       <Folder Include="Core\Models\" />
-      <Folder Include="Core\Services\NewsService\Parsers\" />
     </ItemGroup>
 
 </Project>

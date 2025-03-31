@@ -1,6 +1,8 @@
 ﻿using GagauziaChatBot.Core.Configuration;
 using GagauziaChatBot.Core.Services;
 using GagauziaChatBot.Core.Services.CommandsService;
+using GagauziaChatBot.Core.Services.NewsService;
+using GagauziaChatBot.Core.Services.NewsService.Parsers;
 using Microsoft.Extensions.Configuration;
 using Telegram.Bot;
 using Telegram.Bot.Types;
@@ -28,12 +30,21 @@ internal class Program
         var botService = new BotService(botClient, commandService);
 
         var cts = new CancellationTokenSource();
+        
+        const string rssUrl = "https://nokta.md/feed";
+        var interval = TimeSpan.FromSeconds(20);
+        
+        var httpClient = new HttpClient();
+        var parser = new RssNewsParser(httpClient, rssUrl);
+        var newsTask = new NewsBackgroundTask(botClient, parser, TelegramConstants.GagauziaChatId, interval);
 
         await RegisterBotCommands(botClient, cts.Token);
         botService.StartReceiving(cts.Token);
 
         var me = await botClient.GetMe(cancellationToken: cts.Token);
         Console.WriteLine($"Бот @{me.Username} запущен!");
+        
+        await newsTask.RunAsync(cts.Token);
 
         await Task.Delay(-1, cts.Token);
     }
