@@ -14,25 +14,45 @@ public class RssNewsParser(HttpClient httpClient, string rssUrl)
             var response = await httpClient.GetStreamAsync(rssUrl, ct);
             using var reader = XmlReader.Create(response, new XmlReaderSettings
             {
-                DtdProcessing = DtdProcessing.Ignore, // Игнорируем DTD для безопасности
-                MaxCharactersFromEntities = 1024 // Лимит размера сущностей
+                DtdProcessing = DtdProcessing.Ignore,
+                MaxCharactersFromEntities = 1024
             });
-            
+
             var feed = SyndicationFeed.Load(reader);
             var latestItem = feed.Items.FirstOrDefault();
-            
-            return latestItem is not null ? new NewsItem(
+            if (latestItem is null) return null;
+
+            var url = latestItem.Links.FirstOrDefault()?.Uri?.ToString();
+        
+            // Дополнительная проверка на guid с isPermaLink="true"
+            var guid = latestItem.Id;
+            if (Uri.TryCreate(guid, UriKind.Absolute, out var guidUri))
+            {
+                url ??= guidUri.ToString();
+            }
+
+            // Очистка URL от возможных добавочных элементов, если нужно
+            url = NormalizeUrl(url);
+
+            return new NewsItem(
                 Title: CleanText(latestItem.Title?.Text),
                 Description: CleanText(latestItem.Summary?.Text),
-                Url: latestItem.Links.FirstOrDefault()?.Uri?.ToString() ?? string.Empty
-            ) : null;
+                Url: url
+            );
         }
         catch (Exception ex)
         {
-            // Логирование ошибки (в реальном проекте используйте ILogger)
             Console.WriteLine($"Ошибка парсинга RSS: {ex.Message}");
             return null;
         }
+    }
+
+    private static string NormalizeUrl(string? url)
+    {
+        if (string.IsNullOrEmpty(url)) return string.Empty;
+
+        // Убираем возможные index.php/ если это повторяющаяся ошибка
+        return url.Replace("index.php/", "");
     }
 
     private static string CleanText(string? htmlText)
