@@ -20,27 +20,61 @@ public class PrivateServicesPostHandler(ITelegramBotClient botClient) : BasePost
     public override async Task StartCreation(long chatId, CancellationToken ct)
     {
         IsActive = true;
-        _state = PrivateServicesState.AwaitingTitle;
+        _state = PrivateServicesState.Default;
         _servicePost = new PrivateServicesPost { PhotoIds = new List<string>() };
 
         await BotClient.SendMessage(
             chatId: chatId,
-            text: "💼 <b>Введите название вашей услуги:</b>\n\nПримеры:\n<i>- Пассажирские перевозки Молдова-Болгария\n- Маникюр с выездом на дом\n- Ремонт компьютеров</i>",
-            replyMarkup: new ReplyKeyboardMarkup(new[] { new[] { new KeyboardButton(TelegramConstants.ButtonTitles.Cancel) } })
+            text: "Вы хотите создать новое объявление или переопубликовать существующее?",
+            replyMarkup: new ReplyKeyboardMarkup(new[] 
+            {
+                new[] { new KeyboardButton("Создать новое") },
+                new[] { new KeyboardButton("Переопубликовать") },
+                new[] { new KeyboardButton(TelegramConstants.ButtonTitles.Cancel) }
+            })
             {
                 ResizeKeyboard = true
             },
-            parseMode: ParseMode.Html,
             cancellationToken: ct);
     }
 
     public override async Task HandleMessage(Message message, CancellationToken ct)
     {
-        Console.WriteLine($"Private Services State: {_state}");
         if (message.Text == null) return;
 
         switch (_state)
         {
+            case PrivateServicesState.Default when message.Text == "Создать новое":
+                _state = PrivateServicesState.AwaitingTitle;
+                await ShowTitleInput(message.Chat.Id, ct);
+                break;
+                
+            case PrivateServicesState.Default when message.Text == "Переопубликовать":
+                _state = PrivateServicesState.AwaitingRepostLink;
+                await ShowRepostLinkInput(message.Chat.Id, ct);
+                break;
+                
+            case PrivateServicesState.AwaitingRepostLink:
+                if (TryParseMessageIdFromLink(message.Text, out var messageId))
+                {
+                    await RepostMessageById(message.Chat.Id,messageId, ct);
+                }
+                else
+                {
+                    await BotClient.SendMessage(
+                        chatId: message.Chat.Id,
+                        text: "❌ Неверная ссылка на сообщение. Пожалуйста, отправьте корректную ссылку на ваше объявление.",
+                        replyMarkup: new ReplyKeyboardMarkup(new[]
+                        {
+                            new[] { new KeyboardButton(TelegramConstants.ButtonTitles.Cancel) }
+                        })
+                        {
+                            ResizeKeyboard = true
+                        },
+                        cancellationToken: ct);
+                }
+                break;
+            
             case PrivateServicesState.AwaitingTitle:
                 _servicePost.Title = message.Text;
                 _state = PrivateServicesState.AwaitingDescription;
@@ -74,6 +108,8 @@ public class PrivateServicesPostHandler(ITelegramBotClient botClient) : BasePost
             case PrivateServicesState.ReadyToPost when message.Text == PostButtonTitle:
                 await PostToChannel(message.Chat.Id, ct);
                 break;
+            default:
+                throw new ArgumentOutOfRangeException();
         }
     }
 
@@ -107,6 +143,29 @@ public class PrivateServicesPostHandler(ITelegramBotClient botClient) : BasePost
             cancellationToken: ct);
     }
 
+    private async Task ShowTitleInput(long chatId, CancellationToken ct)
+    {
+        await BotClient.SendMessage(
+            chatId: chatId,
+            text: "💼 <b>Введите название вашей услуги:</b>\n\nПримеры:\n<i>- Пассажирские перевозки Молдова-Болгария\n- Маникюр с выездом на дом\n- Ремонт компьютеров</i>",
+            replyMarkup: new ReplyKeyboardMarkup(new[] { new[] { new KeyboardButton(TelegramConstants.ButtonTitles.Cancel) } })
+            {
+                ResizeKeyboard = true
+            },
+            parseMode: ParseMode.Html,
+            cancellationToken: ct);
+    }
+    private async Task ShowRepostLinkInput(long chatId, CancellationToken ct)
+    {
+        await BotClient.SendMessage(
+            chatId: chatId,
+            text: "🔗 Пожалуйста, отправьте ссылку на ваше предыдущее объявление, которое вы хотите переопубликовать.\n\nВы можете найти его в истории переписки с ботом.",
+            replyMarkup: new ReplyKeyboardMarkup(new[] { new[] { new KeyboardButton(TelegramConstants.ButtonTitles.Cancel) } })
+            {
+                ResizeKeyboard = true
+            },
+            cancellationToken: ct);
+    }
     private async Task ShowDescriptionInput(long chatId, CancellationToken ct)
     {
         await BotClient.SendMessage(
@@ -187,6 +246,7 @@ public class PrivateServicesPostHandler(ITelegramBotClient botClient) : BasePost
     private async Task PostToChannel(long chatId, CancellationToken ct)
     {
         var postText = _servicePost.ToFormattedString();
+        Message postedMessage;
         
         if (_servicePost.PhotoIds!.Any())
         {
@@ -198,15 +258,17 @@ public class PrivateServicesPostHandler(ITelegramBotClient botClient) : BasePost
                 })
                 .ToList();
 
-            await BotClient.SendMediaGroup(
+            var messages =await BotClient.SendMediaGroup(
                 chatId: TelegramConstants.GagauziaChatId,
                 messageThreadId: TelegramConstants.PrivateServicesThreadId,
                 media: media,
                 cancellationToken: ct);
+            
+            postedMessage = messages.First();
         }
         else
         {
-            await BotClient.SendMessage(
+            postedMessage = await BotClient.SendMessage(
                 chatId: TelegramConstants.GagauziaChatId,
                 messageThreadId: TelegramConstants.PrivateServicesThreadId,
                 text: postText,
@@ -214,16 +276,54 @@ public class PrivateServicesPostHandler(ITelegramBotClient botClient) : BasePost
                 cancellationToken: ct);
         }
 
+        var messageLink = $"https://t.me/c/{TelegramConstants.GagauziaChatId.ToString().Replace("-100", "")}/{postedMessage.MessageId}";
+        
         await BotClient.SendMessage(
             chatId: chatId,
-            text: "✅ Ваше предложение услуг опубликовано!",
+            text: $"✅ Ваше предложение услуг опубликовано!\n\nСсылка на объявление: {messageLink}",
             replyMarkup: new ReplyKeyboardMarkup(new[] { new[] { new KeyboardButton(TelegramConstants.ButtonTitles.MainMenu) } })
             {
                 ResizeKeyboard = true
             },
+            linkPreviewOptions: true,
             cancellationToken: ct);
 
         IsActive = false;
-        _state = PrivateServicesState.Default;
+    }
+    private async Task RepostMessageById(long botChatId, int messageId, CancellationToken ct)
+    {
+        try
+        {
+            await BotClient.ForwardMessage(
+                chatId: TelegramConstants.GagauziaChatId,
+                messageThreadId: TelegramConstants.PrivateServicesThreadId,
+                fromChatId: TelegramConstants.GagauziaChatId,
+                messageId: messageId,
+                cancellationToken: ct);
+            
+            await BotClient.SendMessage(
+                chatId: botChatId,
+                text: "✅ Ваше предложение услуг переопубликованно!",
+                replyMarkup: new ReplyKeyboardMarkup(new[] { new[] { new KeyboardButton(TelegramConstants.ButtonTitles.MainMenu) } })
+                {
+                    ResizeKeyboard = true
+                },
+                linkPreviewOptions: true,
+                cancellationToken: ct);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Ошибка при пересылке сообщения: {ex.Message}");
+        }
+    }
+    private bool TryParseMessageIdFromLink(string link, out int messageId)
+    {
+        messageId = 0;
+        if (string.IsNullOrEmpty(link)) return false;
+        
+        // Telegram message links are in format https://t.me/c/CHAT_ID/MESSAGE_ID
+        // or https://t.me/username/MESSAGE_ID for public channels
+        var parts = link.Split('/');
+        return parts.Length >= 2 && int.TryParse(parts.Last(), out messageId);
     }
 }

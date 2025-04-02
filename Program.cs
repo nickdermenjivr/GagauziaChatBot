@@ -33,7 +33,7 @@ internal class Program
 
         await RegisterBotCommands(botClient, cts.Token);
         botService.StartReceiving();
-        botService.StartNewsPostingJob();
+        //botService.StartNewsPostingJob();
 
         var me = await botClient.GetMe(cancellationToken: cts.Token);
         Console.WriteLine($"Бот @{me.Username} запущен!");

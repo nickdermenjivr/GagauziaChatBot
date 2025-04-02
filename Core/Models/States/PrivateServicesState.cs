@@ -3,6 +3,7 @@
 public enum PrivateServicesState
 {
     Default,
+    AwaitingRepostLink,
     AwaitingTitle,
     AwaitingDescription,
     AwaitingPrice,

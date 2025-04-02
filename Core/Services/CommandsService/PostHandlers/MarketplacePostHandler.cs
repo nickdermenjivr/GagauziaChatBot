@@ -36,7 +36,6 @@ public class MarketplacePostHandler(ITelegramBotClient botClient) : BasePostHand
 
     public override async Task HandleMessage(Message message, CancellationToken ct)
     {
-        Console.WriteLine($"Marketplace State: {_state}");
         if (message.Text == null) return;
 
         switch (_state)
