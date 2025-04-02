@@ -19,9 +19,9 @@ public class NewsBackgroundTask(
             try
             {
                 var news = await parser.ParseLatestAsync(ct);
-                
-                await PostNewsItem(news!, ct);
-                cache.Add(news!.Url);
+                if (cache.Contains(news!.Url)) return;
+                await PostNewsItem(news, ct);
+                cache.Add(news.Url);
             }
             catch (Exception ex)
             {
