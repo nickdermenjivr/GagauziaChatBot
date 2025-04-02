@@ -1,4 +1,5 @@
 using GagauziaChatBot.Core.Services.CommandsService;
+using GagauziaChatBot.Core.Services.NewsService;
 using Telegram.Bot;
 using Telegram.Bot.Polling;
 using Telegram.Bot.Types;
@@ -6,9 +7,9 @@ using Telegram.Bot.Exceptions;
 
 namespace GagauziaChatBot.Core.Services;
 
-public class BotService(ITelegramBotClient botClient, ICommandService commandService)
+public class BotService(ITelegramBotClient botClient, CancellationToken cancellationToken, ICommandService commandService, INewsService newsService)
 {
-    public void StartReceiving(CancellationToken cancellationToken)
+    public void StartReceiving()
     {
         var receiverOptions = new ReceiverOptions
         {
@@ -24,13 +25,18 @@ public class BotService(ITelegramBotClient botClient, ICommandService commandSer
         );
     }
 
-    private async Task HandleUpdateAsync(ITelegramBotClient localBotClient, Update update, CancellationToken cancellationToken)
+    public void StartNewsPostingJob()
+    { 
+        newsService.StartNewsPostingAsync(cancellationToken);
+    }
+
+    private async Task HandleUpdateAsync(ITelegramBotClient localBotClient, Update update, CancellationToken ctx)
     {
         try
         {
             if (update.Message is { } message)
             {
-                await commandService.HandleCommand(message, cancellationToken);
+                await commandService.HandleCommand(message, ctx);
             }
         }
         catch (Exception ex)
@@ -39,7 +45,7 @@ public class BotService(ITelegramBotClient botClient, ICommandService commandSer
         }
     }
 
-    private Task HandlePollingErrorAsync(ITelegramBotClient localBotClient, Exception exception, CancellationToken cancellationToken)
+    private Task HandlePollingErrorAsync(ITelegramBotClient localBotClient, Exception exception, CancellationToken ctx)
     {
         var errorMessage = exception switch
         {

@@ -2,7 +2,6 @@
 using GagauziaChatBot.Core.Services;
 using GagauziaChatBot.Core.Services.CommandsService;
 using GagauziaChatBot.Core.Services.NewsService;
-using GagauziaChatBot.Core.Services.NewsService.Parsers;
 using Microsoft.Extensions.Configuration;
 using Telegram.Bot;
 using Telegram.Bot.Types;
@@ -25,27 +24,19 @@ internal class Program
             return;
         }
 
-        var botClient = new TelegramBotClient(botConfig.BotToken);
-        var commandService = new CommandService(botClient);
-        var botService = new BotService(botClient, commandService);
-
         var cts = new CancellationTokenSource();
         
-        const string rssUrl = "https://nokta.md/feed";
-        var interval = TimeSpan.FromSeconds(20);
-        
-        var httpClient = new HttpClient();
-        var parser = new RssNewsParser(httpClient, rssUrl);
-        var cache = new NewsCache();
-        var newsTask = new NewsBackgroundTask(botClient, parser, cache, TelegramConstants.GagauziaChatId,TelegramConstants.NewsThreadId, interval);
+        var botClient = new TelegramBotClient(botConfig.BotToken);
+        var commandService = new CommandService(botClient);
+        var newsService = new NewsService(botClient);
+        var botService = new BotService(botClient, cts.Token, commandService, newsService);
 
         await RegisterBotCommands(botClient, cts.Token);
-        botService.StartReceiving(cts.Token);
+        botService.StartReceiving();
+        botService.StartNewsPostingJob();
 
         var me = await botClient.GetMe(cancellationToken: cts.Token);
         Console.WriteLine($"Бот @{me.Username} запущен!");
-        
-        await newsTask.RunAsync(cts.Token);
 
         await Task.Delay(-1, cts.Token);
     }

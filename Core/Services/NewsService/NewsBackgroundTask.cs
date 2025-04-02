@@ -18,15 +18,10 @@ public class NewsBackgroundTask(
         {
             try
             {
-                var news = await parser.ParseAsync(ct);
-                var newNews = news.Where(n => !cache.Contains(n.Url)).ToList();
+                var news = await parser.ParseLatestAsync(ct);
                 
-                foreach (var item in newNews)
-                {
-                    await PostNewsItem(item, ct);
-                    cache.Add(item.Url);
-                    await Task.Delay(1000, ct); // Пауза между сообщениями
-                }
+                await PostNewsItem(news!, ct);
+                cache.Add(news!.Url);
             }
             catch (Exception ex)
             {
@@ -43,7 +38,7 @@ public class NewsBackgroundTask(
         {
             var message = $"<b>{EscapeHtml(item.Title)}</b>\n\n" +
                           $"{EscapeHtml(item.Description)}\n\n" +
-                          $"<a href=\"{item.Url}\">{item.Url}</a>";
+                          $"<a href=\"{item.Url}\">🔗 Читать полностью</a>";
             await botClient.SendMessage(
                 chatId: targetChatId,
                 messageThreadId:targetThreadId,

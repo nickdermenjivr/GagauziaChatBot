@@ -7,7 +7,7 @@ namespace GagauziaChatBot.Core.Services.NewsService.Parsers;
 
 public class RssNewsParser(HttpClient httpClient, string rssUrl)
 {
-    public async Task<List<NewsItem>> ParseAsync(CancellationToken ct)
+    public async Task<NewsItem?> ParseLatestAsync(CancellationToken ct)
     {
         try
         {
@@ -19,18 +19,19 @@ public class RssNewsParser(HttpClient httpClient, string rssUrl)
             });
             
             var feed = SyndicationFeed.Load(reader);
+            var latestItem = feed.Items.FirstOrDefault();
             
-            return feed.Items.Select(item => new NewsItem(
-                Title: CleanText(item.Title?.Text),
-                Description: CleanText(item.Summary?.Text),
-                Url: item.Links.FirstOrDefault()?.Uri?.ToString() ?? string.Empty
-            )).ToList();
+            return latestItem is not null ? new NewsItem(
+                Title: CleanText(latestItem.Title?.Text),
+                Description: CleanText(latestItem.Summary?.Text),
+                Url: latestItem.Links.FirstOrDefault()?.Uri?.ToString() ?? string.Empty
+            ) : null;
         }
         catch (Exception ex)
         {
             // Логирование ошибки (в реальном проекте используйте ILogger)
             Console.WriteLine($"Ошибка парсинга RSS: {ex.Message}");
-            return new List<NewsItem>();
+            return null;
         }
     }
 
