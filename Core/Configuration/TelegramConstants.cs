@@ -17,11 +17,15 @@ public static class TelegramConstants
         
         // Marketplace
         public const string Marketplace = "🛒 Рынок";
+        
+        // PrivateServices
+        public const string PrivateServices = "💼 Частные услуги";
     }
 
     public const long GagauziaChatId = -1002696920941;
     public const int CarpoolingThreadId = 15;
     public const int MarketplaceThreadId = 18;
     public const int NewsThreadId = 13;
+    public const int PrivateServicesThreadId = 331;
     public static int? MainThreadId = null;
 }

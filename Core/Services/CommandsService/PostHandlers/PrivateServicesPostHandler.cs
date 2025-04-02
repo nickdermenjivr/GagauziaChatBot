@@ -8,24 +8,24 @@ using Telegram.Bot.Types.ReplyMarkups;
 
 namespace GagauziaChatBot.Core.Services.CommandsService.PostHandlers;
 
-public class MarketplacePostHandler(ITelegramBotClient botClient) : BasePostHandler(botClient)
+public class PrivateServicesPostHandler(ITelegramBotClient botClient) : BasePostHandler(botClient)
 {
-    private MarketplacePost _marketplacePost = new();
-    private MarketplaceState _state = MarketplaceState.Default;
-    private const int MaxPhotos = 10;
+    private PrivateServicesPost _servicePost = new();
+    private PrivateServicesState _state = PrivateServicesState.Default;
+    private const int MaxPhotos = 5;
     
-    public override string PostTypeName => "🛒 Рынок";
-    public override string PostButtonTitle => "✅ Опубликовать на рынке";
+    public override string PostTypeName => "💼 Частные услуги";
+    public override string PostButtonTitle => "✅ Опубликовать услугу";
 
     public override async Task StartCreation(long chatId, CancellationToken ct)
     {
         IsActive = true;
-        _state = MarketplaceState.AwaitingTitle;
-        _marketplacePost = new MarketplacePost { PhotoIds = new List<string>() };
+        _state = PrivateServicesState.AwaitingTitle;
+        _servicePost = new PrivateServicesPost { PhotoIds = new List<string>() };
 
         await BotClient.SendMessage(
             chatId: chatId,
-            text: "🛒 <b>Введите название товара:</b>\n\nПример: <i>Продам iPhone 13, 128GB</i>",
+            text: "💼 <b>Введите название вашей услуги:</b>\n\nПримеры:\n<i>- Пассажирские перевозки Молдова-Болгария\n- Маникюр с выездом на дом\n- Ремонт компьютеров</i>",
             replyMarkup: new ReplyKeyboardMarkup(new[] { new[] { new KeyboardButton(TelegramConstants.ButtonTitles.Cancel) } })
             {
                 ResizeKeyboard = true
@@ -36,36 +36,42 @@ public class MarketplacePostHandler(ITelegramBotClient botClient) : BasePostHand
 
     public override async Task HandleMessage(Message message, CancellationToken ct)
     {
-        Console.WriteLine($"Marketplace State: {_state}");
+        Console.WriteLine($"Private Services State: {_state}");
         if (message.Text == null) return;
 
         switch (_state)
         {
-            case MarketplaceState.AwaitingTitle:
-                _marketplacePost.Title = message.Text;
-                _state = MarketplaceState.AwaitingDescription;
+            case PrivateServicesState.AwaitingTitle:
+                _servicePost.Title = message.Text;
+                _state = PrivateServicesState.AwaitingDescription;
                 await ShowDescriptionInput(message.Chat.Id, ct);
                 break;
 
-            case MarketplaceState.AwaitingDescription:
-                _marketplacePost.Description = message.Text;
-                _state = MarketplaceState.AwaitingPhotos;
+            case PrivateServicesState.AwaitingDescription:
+                _servicePost.Description = message.Text;
+                _state = PrivateServicesState.AwaitingPrice;
+                await ShowPriceInput(message.Chat.Id, ct);
+                break;
+
+            case PrivateServicesState.AwaitingPrice:
+                _servicePost.Price = message.Text;
+                _state = PrivateServicesState.AwaitingPhotos;
                 await ShowPhotosInput(message.Chat.Id, ct);
                 break;
 
-            case MarketplaceState.AwaitingPhotos when message.Text == TelegramConstants.ButtonTitles.SkipPhotos:
-                _state = MarketplaceState.AwaitingContact;
+            case PrivateServicesState.AwaitingPhotos when message.Text == TelegramConstants.ButtonTitles.SkipPhotos:
+                _state = PrivateServicesState.AwaitingContact;
                 await ShowContactInput(message.Chat.Id, ct);
                 break;
 
-            case MarketplaceState.AwaitingContact:
-                _marketplacePost.Contact = message.Text;
-                _marketplacePost.Username = message.Chat.Username!;
-                _state = MarketplaceState.ReadyToPost;
+            case PrivateServicesState.AwaitingContact:
+                _servicePost.Contact = message.Text;
+                _servicePost.Username = message.Chat.Username!;
+                _state = PrivateServicesState.ReadyToPost;
                 await ShowPreview(message.Chat.Id, ct);
                 break;
 
-            case MarketplaceState.ReadyToPost when message.Text == PostButtonTitle:
+            case PrivateServicesState.ReadyToPost when message.Text == PostButtonTitle:
                 await PostToChannel(message.Chat.Id, ct);
                 break;
         }
@@ -73,11 +79,9 @@ public class MarketplacePostHandler(ITelegramBotClient botClient) : BasePostHand
 
     public override async Task HandlePhoto(Message message, CancellationToken ct)
     {
-        Console.WriteLine("HandlePhoto");
-        if (_state != MarketplaceState.AwaitingPhotos) return;
-        Console.WriteLine("Check amount");
+        if (_state != PrivateServicesState.AwaitingPhotos) return;
 
-        if (_marketplacePost.PhotoIds!.Count >= MaxPhotos)
+        if (_servicePost.PhotoIds!.Count >= MaxPhotos)
         {
             await BotClient.SendMessage(
                 chatId: message.Chat.Id,
@@ -86,14 +90,12 @@ public class MarketplacePostHandler(ITelegramBotClient botClient) : BasePostHand
             return;
         }
 
-        Console.WriteLine("Adding Photo");
-
         var photo = message.Photo!.Last();
-        _marketplacePost.PhotoIds.Add(photo.FileId);
+        _servicePost.PhotoIds.Add(photo.FileId);
 
         await BotClient.SendMessage(
             chatId: message.Chat.Id,
-            text: $"📸 Добавлено фото {_marketplacePost.PhotoIds.Count}/{MaxPhotos}. Отправьте еще или нажмите \"{TelegramConstants.ButtonTitles.SkipPhotos}\"",
+            text: $"📸 Добавлено фото {_servicePost.PhotoIds.Count}/{MaxPhotos}. Отправьте еще или нажмите \"{TelegramConstants.ButtonTitles.SkipPhotos}\"",
             replyMarkup: new ReplyKeyboardMarkup(new[]
             {
                 new[] { new KeyboardButton(TelegramConstants.ButtonTitles.SkipPhotos) },
@@ -109,7 +111,20 @@ public class MarketplacePostHandler(ITelegramBotClient botClient) : BasePostHand
     {
         await BotClient.SendMessage(
             chatId: chatId,
-            text: "📝 <b>Опишите товар:</b>\n\nУкажите:\n- Состояние\n- Цену\n- Особенности\n\nПример: <i>Отличное состояние, батарея 100%. Цена: 12000 лей. В комплекте чехол и зарядка.</i>",
+            text: "📝 <b>Опишите вашу услугу:</b>\n\nУкажите:\n- Ваш опыт\n- Особенности услуги\n- Возможные варианты\n\nПример: <i>Опыт работы 5 лет. Делаю аппаратный маникюр, покрытие гель-лаком. Выезд на дом.</i>",
+            replyMarkup: new ReplyKeyboardMarkup(new[] { new[] { new KeyboardButton(TelegramConstants.ButtonTitles.Cancel) } })
+            {
+                ResizeKeyboard = true
+            },
+            parseMode: ParseMode.Html,
+            cancellationToken: ct);
+    }
+
+    private async Task ShowPriceInput(long chatId, CancellationToken ct)
+    {
+        await BotClient.SendMessage(
+            chatId: chatId,
+            text: "💰 <b>Укажите стоимость услуги:</b>\n\nПримеры:\n<i>- 100 лей за маникюр\n- 200 лей/час за репетиторство\n- Договорная</i>",
             replyMarkup: new ReplyKeyboardMarkup(new[] { new[] { new KeyboardButton(TelegramConstants.ButtonTitles.Cancel) } })
             {
                 ResizeKeyboard = true
@@ -122,7 +137,7 @@ public class MarketplacePostHandler(ITelegramBotClient botClient) : BasePostHand
     {
         await BotClient.SendMessage(
             chatId: chatId,
-            text: $"📸 <b>Пришлите фото товара (до {MaxPhotos} шт.):</b>\n\nИли нажмите \"{TelegramConstants.ButtonTitles.SkipPhotos}\"",
+            text: $"📸 <b>Пришлите фото ваших работ (до {MaxPhotos} шт.):</b>\n\nИли нажмите \"{TelegramConstants.ButtonTitles.SkipPhotos}\"",
             replyMarkup: new ReplyKeyboardMarkup(new[]
             {
                 new[] { new KeyboardButton(TelegramConstants.ButtonTitles.SkipPhotos) },
@@ -150,7 +165,7 @@ public class MarketplacePostHandler(ITelegramBotClient botClient) : BasePostHand
 
     private async Task ShowPreview(long chatId, CancellationToken ct)
     {
-        var previewText = _marketplacePost.ToFormattedString();
+        var previewText = _servicePost.ToFormattedString();
         
         var keyboard = new ReplyKeyboardMarkup(new[]
         {
@@ -171,11 +186,11 @@ public class MarketplacePostHandler(ITelegramBotClient botClient) : BasePostHand
 
     private async Task PostToChannel(long chatId, CancellationToken ct)
     {
-        var postText = _marketplacePost.ToFormattedString();
+        var postText = _servicePost.ToFormattedString();
         
-        if (_marketplacePost.PhotoIds!.Any())
+        if (_servicePost.PhotoIds!.Any())
         {
-            var media = _marketplacePost.PhotoIds!
+            var media = _servicePost.PhotoIds!
                 .Select((id, index) => new InputMediaPhoto(id)
                 {
                     Caption = index == 0 ? postText : null,
@@ -185,7 +200,7 @@ public class MarketplacePostHandler(ITelegramBotClient botClient) : BasePostHand
 
             await BotClient.SendMediaGroup(
                 chatId: TelegramConstants.GagauziaChatId,
-                messageThreadId: TelegramConstants.MarketplaceThreadId,
+                messageThreadId: TelegramConstants.PrivateServicesThreadId,
                 media: media,
                 cancellationToken: ct);
         }
@@ -193,7 +208,7 @@ public class MarketplacePostHandler(ITelegramBotClient botClient) : BasePostHand
         {
             await BotClient.SendMessage(
                 chatId: TelegramConstants.GagauziaChatId,
-                messageThreadId: TelegramConstants.MarketplaceThreadId,
+                messageThreadId: TelegramConstants.PrivateServicesThreadId,
                 text: postText,
                 parseMode: ParseMode.Html,
                 cancellationToken: ct);
@@ -201,7 +216,7 @@ public class MarketplacePostHandler(ITelegramBotClient botClient) : BasePostHand
 
         await BotClient.SendMessage(
             chatId: chatId,
-            text: "✅ Ваше объявление опубликовано в разделе 'Рынок'!",
+            text: "✅ Ваше предложение услуг опубликовано!",
             replyMarkup: new ReplyKeyboardMarkup(new[] { new[] { new KeyboardButton(TelegramConstants.ButtonTitles.MainMenu) } })
             {
                 ResizeKeyboard = true
@@ -209,5 +224,6 @@ public class MarketplacePostHandler(ITelegramBotClient botClient) : BasePostHand
             cancellationToken: ct);
 
         IsActive = false;
+        _state = PrivateServicesState.Default;
     }
 }

@@ -21,8 +21,8 @@ public class CommandService : ICommandService
 
     public async Task HandleCommand(Message message, CancellationToken cancellationToken)
     {
-        if (message.Type != MessageType.Text || message.From == null)
-            return;
+        //if (message.Type != MessageType.Text || message.From == null)
+          //  return;
         
         try
         {
@@ -56,7 +56,8 @@ public class CommandService : ICommandService
         return new Dictionary<string, BasePostHandler>
         {
             { TelegramConstants.ButtonTitles.Carpooling, new CarpoolingPostHandler(botClient) },
-            { TelegramConstants.ButtonTitles.Marketplace, new MarketplacePostHandler(botClient) }
+            { TelegramConstants.ButtonTitles.Marketplace, new MarketplacePostHandler(botClient) },
+            { TelegramConstants.ButtonTitles.PrivateServices, new PrivateServicesPostHandler(botClient) }
         };
     }
 
@@ -72,13 +73,25 @@ public class CommandService : ICommandService
 
     private async Task ProcessActiveHandler(BasePostHandler handler, Message message, CancellationToken ct)
     {
-        if (message.Photo != null)
+        try
         {
-            await handler.HandlePhoto(message, ct);
+            Console.WriteLine($"Processing message type: {message.Type}");
+        
+            if (message.Photo != null)
+            {
+                Console.WriteLine("Photo detected, calling HandlePhoto");
+                await handler.HandlePhoto(message, ct);
+            }
+            else if (message.Text != null)
+            {
+                Console.WriteLine("Text detected, calling HandleMessage");
+                await handler.HandleMessage(message, ct);
+            }
         }
-        else if (message.Text != null)
+        catch (Exception ex)
         {
-            await handler.HandleMessage(message, ct);
+            Console.WriteLine($"Error in ProcessActiveHandler: {ex}");
+            throw;
         }
     }
 
@@ -177,7 +190,8 @@ public class CommandService : ICommandService
         var restrictedThreadIds = new[] 
         { 
             TelegramConstants.CarpoolingThreadId,
-            TelegramConstants.MarketplaceThreadId
+            TelegramConstants.MarketplaceThreadId,
+            TelegramConstants.PrivateServicesThreadId
         };
 
         var shouldRestrict = isMainThread || 
