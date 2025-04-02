@@ -9,6 +9,8 @@ public static class TelegramConstants
         public const string Post = "✅ Опубликовать";
         public const string Cancel = "❌ Отмена";
         public const string SkipPhotos = "⏭ Продолжить";
+        public const string CreateNew = "🆕 Создать новое";
+        public const string Repost = "🔄 Переопубликовать";
         
         // Carpooling
         public const string Carpooling = "🚗 Попутчики";

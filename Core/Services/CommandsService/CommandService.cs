@@ -45,9 +45,9 @@ public class CommandService : ICommandService
 
             await ProcessMainCommands(message, cancellationToken);
         }
-        catch (Exception ex)
+        catch (Exception)
         {
-            await HandleError(message.Chat.Id, ex, cancellationToken);
+            await HandleError(message.Chat.Id, cancellationToken);
         }
     }
 
@@ -75,23 +75,19 @@ public class CommandService : ICommandService
     {
         try
         {
-            Console.WriteLine($"Processing message type: {message.Type}");
         
             if (message.Photo != null)
             {
-                Console.WriteLine("Photo detected, calling HandlePhoto");
                 await handler.HandlePhoto(message, ct);
             }
             else if (message.Text != null)
             {
-                Console.WriteLine("Text detected, calling HandleMessage");
                 await handler.HandleMessage(message, ct);
             }
         }
-        catch (Exception ex)
+        catch (Exception)
         {
-            Console.WriteLine($"Error in ProcessActiveHandler: {ex}");
-            throw;
+            // ignored
         }
     }
 
@@ -163,7 +159,7 @@ public class CommandService : ICommandService
             cancellationToken: ct);
     }
 
-    private async Task HandleError(long chatId, Exception ex, CancellationToken ct)
+    private async Task HandleError(long chatId, CancellationToken ct)
     {
         try
         {
@@ -176,8 +172,6 @@ public class CommandService : ICommandService
         {
             // ignored
         }
-
-        Console.WriteLine($"Error: {ex.Message}\n{ex.StackTrace}");
     }
     
     private async Task<bool> RestrictMessageInThreads(Message message, CancellationToken ct)
@@ -226,7 +220,6 @@ public class CommandService : ICommandService
         }
         catch (ApiRequestException ex) when (ex.ErrorCode == 400 || ex.ErrorCode == 403)
         {
-            Console.WriteLine($"Ошибка ограничения: {ex.Message}");
             return false;
         }
     }

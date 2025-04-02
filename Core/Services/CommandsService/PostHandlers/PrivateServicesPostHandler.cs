@@ -28,8 +28,8 @@ public class PrivateServicesPostHandler(ITelegramBotClient botClient) : BasePost
             text: "Вы хотите создать новое объявление или переопубликовать существующее?",
             replyMarkup: new ReplyKeyboardMarkup(new[] 
             {
-                new[] { new KeyboardButton("Создать новое") },
-                new[] { new KeyboardButton("Переопубликовать") },
+                new[] { new KeyboardButton(TelegramConstants.ButtonTitles.CreateNew) },
+                new[] { new KeyboardButton(TelegramConstants.ButtonTitles.Repost) },
                 new[] { new KeyboardButton(TelegramConstants.ButtonTitles.Cancel) }
             })
             {
@@ -44,12 +44,12 @@ public class PrivateServicesPostHandler(ITelegramBotClient botClient) : BasePost
 
         switch (_state)
         {
-            case PrivateServicesState.Default when message.Text == "Создать новое":
+            case PrivateServicesState.Default when message.Text == TelegramConstants.ButtonTitles.CreateNew:
                 _state = PrivateServicesState.AwaitingTitle;
                 await ShowTitleInput(message.Chat.Id, ct);
                 break;
                 
-            case PrivateServicesState.Default when message.Text == "Переопубликовать":
+            case PrivateServicesState.Default when message.Text == TelegramConstants.ButtonTitles.Repost:
                 _state = PrivateServicesState.AwaitingRepostLink;
                 await ShowRepostLinkInput(message.Chat.Id, ct);
                 break;
@@ -142,7 +142,18 @@ public class PrivateServicesPostHandler(ITelegramBotClient botClient) : BasePost
             },
             cancellationToken: ct);
     }
-
+    
+    private async Task ShowRepostLinkInput(long chatId, CancellationToken ct)
+    {
+        await BotClient.SendMessage(
+            chatId: chatId,
+            text: "🔗 Пожалуйста, отправьте ссылку на ваше предыдущее объявление, которое вы хотите переопубликовать.\n\nВы можете найти его в истории переписки с ботом.",
+            replyMarkup: new ReplyKeyboardMarkup(new[] { new[] { new KeyboardButton(TelegramConstants.ButtonTitles.Cancel) } })
+            {
+                ResizeKeyboard = true
+            },
+            cancellationToken: ct);
+    }
     private async Task ShowTitleInput(long chatId, CancellationToken ct)
     {
         await BotClient.SendMessage(
@@ -153,17 +164,6 @@ public class PrivateServicesPostHandler(ITelegramBotClient botClient) : BasePost
                 ResizeKeyboard = true
             },
             parseMode: ParseMode.Html,
-            cancellationToken: ct);
-    }
-    private async Task ShowRepostLinkInput(long chatId, CancellationToken ct)
-    {
-        await BotClient.SendMessage(
-            chatId: chatId,
-            text: "🔗 Пожалуйста, отправьте ссылку на ваше предыдущее объявление, которое вы хотите переопубликовать.\n\nВы можете найти его в истории переписки с ботом.",
-            replyMarkup: new ReplyKeyboardMarkup(new[] { new[] { new KeyboardButton(TelegramConstants.ButtonTitles.Cancel) } })
-            {
-                ResizeKeyboard = true
-            },
             cancellationToken: ct);
     }
     private async Task ShowDescriptionInput(long chatId, CancellationToken ct)
@@ -258,7 +258,7 @@ public class PrivateServicesPostHandler(ITelegramBotClient botClient) : BasePost
                 })
                 .ToList();
 
-            var messages =await BotClient.SendMediaGroup(
+            var messages = await BotClient.SendMediaGroup(
                 chatId: TelegramConstants.GagauziaChatId,
                 messageThreadId: TelegramConstants.PrivateServicesThreadId,
                 media: media,
@@ -277,7 +277,6 @@ public class PrivateServicesPostHandler(ITelegramBotClient botClient) : BasePost
         }
 
         var messageLink = $"https://t.me/c/{TelegramConstants.GagauziaChatId.ToString().Replace("-100", "")}/{postedMessage.MessageId}";
-        
         await BotClient.SendMessage(
             chatId: chatId,
             text: $"✅ Ваше предложение услуг опубликовано!\n\nСсылка на объявление: {messageLink}",
@@ -319,11 +318,17 @@ public class PrivateServicesPostHandler(ITelegramBotClient botClient) : BasePost
     private bool TryParseMessageIdFromLink(string link, out int messageId)
     {
         messageId = 0;
-        if (string.IsNullOrEmpty(link)) return false;
-        
-        // Telegram message links are in format https://t.me/c/CHAT_ID/MESSAGE_ID
-        // or https://t.me/username/MESSAGE_ID for public channels
-        var parts = link.Split('/');
-        return parts.Length >= 2 && int.TryParse(parts.Last(), out messageId);
+    
+        if (string.IsNullOrEmpty(link)) 
+            return false;
+
+        var uriParts = link.Split(new[] { '/', '?' }, StringSplitOptions.RemoveEmptyEntries);
+    
+        if (uriParts.Length < 2 || !int.TryParse(uriParts.LastOrDefault(x => int.TryParse(x, out _)), out messageId))
+            return false;
+
+        var threadParam = uriParts.FirstOrDefault(x => x.StartsWith("thread="));
+        if (threadParam == null || !int.TryParse(threadParam.Split('=')[1], out var threadId)) return true;
+        return threadId == TelegramConstants.PrivateServicesThreadId;
     }
 }

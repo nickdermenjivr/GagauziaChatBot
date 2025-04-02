@@ -3,6 +3,7 @@
 public enum MarketplaceState
 {
     Default,
+    AwaitingRepostLink,
     AwaitingTitle,
     AwaitingDescription,
     AwaitingPhotos,
