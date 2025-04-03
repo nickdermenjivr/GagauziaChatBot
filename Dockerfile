@@ -1,21 +1,15 @@
-# Используем официальный образ .NET SDK
+# Используем образ с .NET 9
+FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS base
+WORKDIR /app
+
 FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
-
-# Устанавливаем рабочую директорию
-WORKDIR /app
-
-# Копируем проект
-COPY *.csproj ./
+WORKDIR /src
+COPY ["GagauziaChatBot.csproj", "./"]
 RUN dotnet restore
+COPY . .
+RUN dotnet publish -c Release -o /app/publish
 
-# Копируем остальной код и собираем
-COPY . ./
-RUN dotnet publish -c Release -o /out
-
-# Используем рантайм-образ для запуска
-FROM mcr.microsoft.com/dotnet/aspnet:6.0 AS runtime
+FROM base AS final
 WORKDIR /app
-COPY --from=build /out ./
-
-# Запускаем бота
+COPY --from=build /app/publish .
 CMD ["dotnet", "GagauziaChatBot.dll"]
