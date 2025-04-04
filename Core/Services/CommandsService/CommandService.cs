@@ -35,6 +35,7 @@ public class CommandService : ICommandService
             {
                 await ResetAllHandlers(message.Chat.Id, cancellationToken);
                 await DeleteMessageFromChat(message.Chat.Id, message.MessageId);
+                await DeleteBotLastMessageFromChat(message.Chat.Id, lastBotMessage!.MessageId);
                 return;
             }
 
@@ -43,6 +44,7 @@ public class CommandService : ICommandService
             {
                 await ProcessActiveHandler(activeHandler, message, cancellationToken);
                 await DeleteMessageFromChat(message.Chat.Id, message.MessageId);
+                await DeleteBotLastMessageFromChat(message.Chat.Id, lastBotMessage!.MessageId);
                 return;
             }
 
@@ -233,11 +235,22 @@ public class CommandService : ICommandService
         try
         {
             await _botClient.DeleteMessage(chatId, messageId);
-            await _botClient.DeleteMessage(chatId, lastBotMessage!.MessageId);
         }
         catch (Exception ex)
         {
             Console.WriteLine($"Ошибка при удалении сообщения: {ex.Message}");
+        }
+    }
+
+    private async Task DeleteBotLastMessageFromChat(long chatId, int messageId)
+    {
+        try
+        {
+            await _botClient.DeleteMessage(chatId, lastBotMessage!.MessageId);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Ошибка при удалении сообщения бота: {ex.Message}");
         }
     }
 }
