@@ -12,7 +12,6 @@ public class CommandService : ICommandService
 {
     private readonly ITelegramBotClient _botClient;
     private readonly Dictionary<string, BasePostHandler> _postHandlers;
-    private Message? lastBotMessage;
 
     public CommandService(ITelegramBotClient botClient)
     {
@@ -34,8 +33,6 @@ public class CommandService : ICommandService
             if (IsResetCommand(message.Text))
             {
                 await ResetAllHandlers(message.Chat.Id, cancellationToken);
-                await DeleteMessageFromChat(message.Chat.Id, message.MessageId);
-                await DeleteBotLastMessageFromChat(message.Chat.Id, lastBotMessage!.MessageId);
                 return;
             }
 
@@ -43,13 +40,10 @@ public class CommandService : ICommandService
             if (activeHandler != null)
             {
                 await ProcessActiveHandler(activeHandler, message, cancellationToken);
-                await DeleteMessageFromChat(message.Chat.Id, message.MessageId);
-                await DeleteBotLastMessageFromChat(message.Chat.Id, lastBotMessage!.MessageId);
                 return;
             }
 
             await ProcessMainCommands(message, cancellationToken);
-            await DeleteMessageFromChat(message.Chat.Id, message.MessageId);
         }
         catch (Exception)
         {
@@ -137,7 +131,7 @@ public class CommandService : ICommandService
             OneTimeKeyboard = false
         };
 
-        lastBotMessage = await _botClient.SendMessage(
+        await _botClient.SendMessage(
             chatId: chatId,
             text: "🏠 <b>Главное меню</b>",
             replyMarkup: keyboard,
@@ -157,7 +151,7 @@ public class CommandService : ICommandService
             OneTimeKeyboard = false
         };
 
-        lastBotMessage = await _botClient.SendMessage(
+        await _botClient.SendMessage(
             chatId: chatId,
             text: "📋 <b>Выберите категорию</b>",
             replyMarkup: keyboard,
@@ -169,7 +163,7 @@ public class CommandService : ICommandService
     {
         try
         {
-            lastBotMessage = await _botClient.SendMessage(
+            await _botClient.SendMessage(
                 chatId: chatId,
                 text: "⚠️ Произошла ошибка. Попробуйте позже.",
                 cancellationToken: ct);
@@ -239,18 +233,6 @@ public class CommandService : ICommandService
         catch (Exception ex)
         {
             Console.WriteLine($"Ошибка при удалении сообщения: {ex.Message}");
-        }
-    }
-
-    private async Task DeleteBotLastMessageFromChat(long chatId, int messageId)
-    {
-        try
-        {
-            await _botClient.DeleteMessage(chatId, lastBotMessage!.MessageId);
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"Ошибка при удалении сообщения бота: {ex.Message}");
         }
     }
 }
