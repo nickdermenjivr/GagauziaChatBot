@@ -1,32 +1,26 @@
-﻿using GagauziaChatBot.Core.Configuration;
-using GagauziaChatBot.Core.Services;
+﻿using GagauziaChatBot.Core.Services;
 using GagauziaChatBot.Core.Services.CommandsService;
 using GagauziaChatBot.Core.Services.NewsService;
-using Microsoft.Extensions.Configuration;
 using Telegram.Bot;
 using Telegram.Bot.Types;
 
 namespace GagauziaChatBot;
 
-internal class Program 
+internal static class Program 
 {
     private static async Task Main()
     {
-        var configuration = new ConfigurationBuilder()
-            .AddUserSecrets<Program>()
-            .AddJsonFile("appsettings.json", optional: true)
-            .Build();
+        var botToken = Environment.GetEnvironmentVariable("BOT_TOKEN");
 
-        var botConfig = configuration.GetSection("BotSettings").Get<BotConfig>();
-        if (string.IsNullOrEmpty(botConfig?.BotToken))
+        if (string.IsNullOrEmpty(botToken))
         {
-            Console.WriteLine("Ошибка: Токен бота не настроен");
+            Console.WriteLine("❌ Ошибка: Токен бота не настроен");
             return;
         }
 
         var cts = new CancellationTokenSource();
         
-        var botClient = new TelegramBotClient(botConfig.BotToken);
+        var botClient = new TelegramBotClient(botToken);
         var commandService = new CommandService(botClient);
         var newsService = new NewsService(botClient);
         var botService = new BotService(botClient, cts.Token, commandService, newsService);
