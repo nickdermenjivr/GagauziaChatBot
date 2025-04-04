@@ -44,6 +44,7 @@ public class CommandService : ICommandService
             }
 
             await ProcessMainCommands(message, cancellationToken);
+            await DeleteMessageFromChat(message.Chat.Id, message.MessageId);
         }
         catch (Exception)
         {
@@ -221,6 +222,18 @@ public class CommandService : ICommandService
         catch (ApiRequestException ex) when (ex.ErrorCode == 400 || ex.ErrorCode == 403)
         {
             return false;
+        }
+    }
+    
+    private async Task DeleteMessageFromChat(long chatId, int messageId)
+    {
+        try
+        {
+            await _botClient.DeleteMessage(chatId, messageId);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Ошибка при удалении сообщения: {ex.Message}");
         }
     }
 }
