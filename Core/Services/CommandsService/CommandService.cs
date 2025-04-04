@@ -33,6 +33,7 @@ public class CommandService : ICommandService
             if (IsResetCommand(message.Text))
             {
                 await ResetAllHandlers(message.Chat.Id, cancellationToken);
+                await DeleteMessageFromChat(message.Chat.Id, message.MessageId);
                 return;
             }
 
@@ -40,6 +41,7 @@ public class CommandService : ICommandService
             if (activeHandler != null)
             {
                 await ProcessActiveHandler(activeHandler, message, cancellationToken);
+                await DeleteMessageFromChat(message.Chat.Id, message.MessageId);
                 return;
             }
 
