@@ -11,7 +11,7 @@ internal static class Program
     private static async Task Main()
     {
         var botToken = Environment.GetEnvironmentVariable("BOT_TOKEN");
-
+        //var botToken = "8181148069:AAHGwZXVK1rLdQ45g5D8_KCf2BPqZ1Q_IkE"; //Test bot
         if (string.IsNullOrEmpty(botToken))
         {
             Console.WriteLine("❌ Ошибка: Токен бота не настроен");
@@ -27,7 +27,7 @@ internal static class Program
 
         await RegisterBotCommands(botClient, cts.Token);
         botService.StartReceiving();
-        //botService.StartNewsPostingJob();
+        botService.StartNewsPostingJob();
 
         var me = await botClient.GetMe(cancellationToken: cts.Token);
         Console.WriteLine($"Бот @{me.Username} запущен!");

@@ -23,7 +23,7 @@ public class CommandService : ICommandService
     {
         //if (message.Type != MessageType.Text || message.From == null)
           //  return;
-        
+          
         try
         {
             if (await RestrictMessageInThreads(message, cancellationToken)) return;
