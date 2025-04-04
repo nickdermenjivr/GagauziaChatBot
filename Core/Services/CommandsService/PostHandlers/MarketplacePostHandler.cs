@@ -105,6 +105,8 @@ public class MarketplacePostHandler(ITelegramBotClient botClient) : BasePostHand
             default:
                 throw new ArgumentOutOfRangeException();
         }
+
+        await DeleteMessageFromChat(message.Chat.Id, message.MessageId);
     }
 
     public override async Task HandlePhoto(Message message, CancellationToken ct)
@@ -314,5 +316,16 @@ public class MarketplacePostHandler(ITelegramBotClient botClient) : BasePostHand
         var threadParam = uriParts.FirstOrDefault(x => x.StartsWith("thread="));
         if (threadParam == null || !int.TryParse(threadParam.Split('=')[1], out var threadId)) return true;
         return threadId == TelegramConstants.MarketplaceThreadId;
+    }
+    public async Task DeleteMessageFromChat(long chatId, int messageId)
+    {
+        try
+        {
+            await BotClient.DeleteMessage(chatId, messageId);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Ошибка при удалении сообщения: {ex.Message}");
+        }
     }
 }
