@@ -12,6 +12,7 @@ public class CommandService : ICommandService
 {
     private readonly ITelegramBotClient _botClient;
     private readonly Dictionary<string, BasePostHandler> _postHandlers;
+    private Message? lastBotMessage;
 
     public CommandService(ITelegramBotClient botClient)
     {
@@ -134,7 +135,7 @@ public class CommandService : ICommandService
             OneTimeKeyboard = false
         };
 
-        await _botClient.SendMessage(
+        lastBotMessage = await _botClient.SendMessage(
             chatId: chatId,
             text: "🏠 <b>Главное меню</b>",
             replyMarkup: keyboard,
@@ -154,7 +155,7 @@ public class CommandService : ICommandService
             OneTimeKeyboard = false
         };
 
-        await _botClient.SendMessage(
+        lastBotMessage = await _botClient.SendMessage(
             chatId: chatId,
             text: "📋 <b>Выберите категорию</b>",
             replyMarkup: keyboard,
@@ -166,7 +167,7 @@ public class CommandService : ICommandService
     {
         try
         {
-            await _botClient.SendMessage(
+            lastBotMessage = await _botClient.SendMessage(
                 chatId: chatId,
                 text: "⚠️ Произошла ошибка. Попробуйте позже.",
                 cancellationToken: ct);
@@ -232,6 +233,7 @@ public class CommandService : ICommandService
         try
         {
             await _botClient.DeleteMessage(chatId, messageId);
+            await _botClient.DeleteMessage(chatId, lastBotMessage!.MessageId);
         }
         catch (Exception ex)
         {
