@@ -6,17 +6,17 @@ namespace GagauziaChatBot.Core.Services.NewsService;
 
 public class NewsService(ITelegramBotClient botClient) : INewsService
 {
-    private const int UpdateIntervalSeconds = 2500;
+    private const int UpdateIntervalSeconds = 4000;
     private readonly Dictionary<string, (RssNewsParser Parser, NewsCache Cache, NewsBackgroundTask Task)> _newsSources = new();
     private readonly Dictionary<string, string> _rssFeeds = new()
     {
         { "rambler_crazy", "https://weekend.rambler.ru/rss/crazy-world/latest/?limit=100" },
         { "rambler_tech", "https://news.rambler.ru/rss/tech/latest/?limit=100" },
-        { "120su", "https://120.su/feed/" },
+        //{ "120su", "https://120.su/feed/" },
     };
     
-    private readonly TimeSpan _startTime = new (8, 0, 0);
-    private readonly TimeSpan _endTime = new (23, 0, 0);
+    private readonly TimeSpan _startTime = new (6, 0, 0);
+    private readonly TimeSpan _endTime = new (20, 0, 0);
 
     public async Task StartNewsPostingAsync(CancellationToken cancellationToken)
     {

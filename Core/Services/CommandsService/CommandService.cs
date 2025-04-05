@@ -184,7 +184,7 @@ public class CommandService : ICommandService
         var restrictedThreadIds = new[] 
         { 
             //TelegramConstants.CarpoolingThreadId,
-            TelegramConstants.MarketplaceThreadId,
+            //TelegramConstants.MarketplaceThreadId,
             TelegramConstants.PrivateServicesThreadId
         };
 
