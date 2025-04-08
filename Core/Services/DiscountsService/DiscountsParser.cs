@@ -1,4 +1,4 @@
-﻿using Microsoft.Playwright;
+﻿using HtmlAgilityPack;
 
 namespace GagauziaChatBot.Core.Services.DiscountsService;
 
@@ -7,25 +7,50 @@ public static class DiscountsParser
     public static async Task<(List<string>, string)> ExtractImageUrlsAndPromoText(string url, int maxImages)
     {
         var imageUrls = new List<string>();
-        var promoText = "";
+        var promoText = string.Empty;
 
-        using var playwright = await Playwright.CreateAsync();
-        await using var browser = await playwright.Chromium.LaunchAsync(new() { Headless = true });
-        var page = await browser.NewPageAsync();
-        await page.GotoAsync(url, new PageGotoOptions { WaitUntil = WaitUntilState.NetworkIdle });
-
-        var figures = await page.Locator("div.gallery figure").AllAsync();
-        foreach (var fig in figures.Take(maxImages))
+        try
         {
-            var src = await fig.Locator("img").First.GetAttributeAsync("src");
-            if (!string.IsNullOrEmpty(src))
-                imageUrls.Add(src.StartsWith("http") ? src : new Uri(new Uri(url), src).ToString());
+            // 1. Загружаем HTML страницы
+            var httpClient = new HttpClient();
+            var html = await httpClient.GetStringAsync(url);
+            
+            // 2. Парсим HTML
+            var doc = new HtmlDocument();
+            doc.LoadHtml(html);
+
+            // 3. Извлекаем изображения
+            var imageNodes = doc.DocumentNode.SelectNodes("//div[contains(@class,'gallery')]//img")
+                .Take(maxImages)
+                .ToList();
+
+            var index = 0;
+            for (; index < imageNodes.Count; index++)
+            {
+                var imgNode = imageNodes[index];
+                var src = imgNode.GetAttributeValue("src", "");
+                if (!string.IsNullOrEmpty(src))
+                {
+                    imageUrls.Add(MakeAbsoluteUrl(url, src));
+                }
+            }
+
+            // 4. Извлекаем текст акции
+            var promoNode = doc.DocumentNode.SelectSingleNode("//div[contains(@class,'text-center')]//h5");
+            promoText = promoNode.InnerText.Trim();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Ошибка парсинга: {ex.Message}");
         }
 
-        var h5 = page.Locator("div.text-center.my-6 h5.mb-0");
-        if (await h5.CountAsync() > 0)
-            promoText = await h5.First.InnerTextAsync();
-
         return (imageUrls, promoText);
+    }
+
+    private static string MakeAbsoluteUrl(string baseUrl, string relativeUrl)
+    {
+        return relativeUrl.StartsWith("http") 
+            ? relativeUrl 
+            : new Uri(new Uri(baseUrl), relativeUrl).AbsoluteUri;
     }
 }
