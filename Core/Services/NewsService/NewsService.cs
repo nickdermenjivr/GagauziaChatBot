@@ -4,9 +4,9 @@ using Telegram.Bot;
 
 namespace GagauziaChatBot.Core.Services.NewsService;
 
-public class NewsService(ITelegramBotClient botClient) : INewsService
+public class NewsService : INewsService
 {
-    private const int UpdateIntervalSeconds = 4000;
+    private readonly TimeSpan _updateInterval = TimeSpan.FromMinutes(30);
     private readonly Dictionary<string, (RssNewsParser Parser, NewsCache Cache, NewsBackgroundTask Task)> _newsSources = new();
     private readonly Dictionary<string, string> _rssFeeds = new()
     {
@@ -14,19 +14,29 @@ public class NewsService(ITelegramBotClient botClient) : INewsService
         { "rambler_tech", "https://news.rambler.ru/rss/tech/latest/?limit=100" },
         //{ "120su", "https://120.su/feed/" },
     };
-    
-    private readonly TimeSpan _startTime = new (6, 0, 0);
-    private readonly TimeSpan _endTime = new (20, 0, 0);
+
+    private readonly TimeSpan _startTime = new(6, 0, 0);
+    private readonly TimeSpan _endTime = new(20, 0, 0);
+    private readonly TimeSpan _taskDelayInterval = TimeSpan.FromMinutes(10);  // Интервал между задачами
+
+    public NewsService(ITelegramBotClient botClient)
+    {
+        InitializeComponents(botClient);
+    }
 
     public async Task StartNewsPostingAsync(CancellationToken cancellationToken)
     {
-        InitializeComponents();
+        foreach (var source in _newsSources.Values)
+        {
+            // Запускаем задачу поочередно
+            _ = source.Task.RunAsync(cancellationToken);
 
-        var tasks = _newsSources.Values.Select(source => source.Task.RunAsync(cancellationToken));
-        await Task.WhenAll(tasks);
+            // Задержка перед запуском следующей задачи
+            await Task.Delay(_taskDelayInterval, cancellationToken);
+        }
     }
 
-    private void InitializeComponents()
+    private void InitializeComponents(ITelegramBotClient botClient)
     {
         var httpClient = CreateHttpClient();
 
@@ -34,8 +44,8 @@ public class NewsService(ITelegramBotClient botClient) : INewsService
         {
             var parser = new RssNewsParser(httpClient, rssUrl);
             var cache = new NewsCache();
-            var task = new NewsBackgroundTask(botClient, parser, cache, TelegramConstants.GagauziaChatId, TelegramConstants.NewsThreadId, TimeSpan.FromSeconds(UpdateIntervalSeconds), _startTime, _endTime);
-            
+            var task = new NewsBackgroundTask(botClient, parser, cache, TelegramConstants.GagauziaChatId, TelegramConstants.NewsThreadId, _updateInterval, _startTime, _endTime);
+
             _newsSources[sourceName] = (parser, cache, task);
         }
     }

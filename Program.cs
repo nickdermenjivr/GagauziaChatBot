@@ -1,5 +1,6 @@
 ﻿using GagauziaChatBot.Core.Services;
 using GagauziaChatBot.Core.Services.CommandsService;
+using GagauziaChatBot.Core.Services.DiscountsService;
 using GagauziaChatBot.Core.Services.NewsService;
 using Telegram.Bot;
 using Telegram.Bot.Types;
@@ -19,14 +20,16 @@ internal static class Program
         }
 
         var cts = new CancellationTokenSource();
-        
         var botClient = new TelegramBotClient(botToken);
+        await botClient.DeleteWebhook(cancellationToken: cts.Token);
         var commandService = new CommandService(botClient);
         var newsService = new NewsService(botClient);
-        var botService = new BotService(botClient, cts.Token, commandService, newsService);
+        var discountsService = new DiscountsService(botClient);
+        var botService = new BotService(botClient, cts.Token, commandService, newsService, discountsService);
 
         await RegisterBotCommands(botClient, cts.Token);
         botService.StartReceiving();
+        botService.StartDiscountsPostingJob();
         //botService.StartNewsPostingJob();
 
         var me = await botClient.GetMe(cancellationToken: cts.Token);
@@ -41,7 +44,7 @@ internal static class Program
         {
             new() { Command = "menu", Description = "Главное меню" },
         };
-
+        
         await botClient.SetMyCommands(
             commands: commands,
             cancellationToken: cancellationToken

@@ -1,4 +1,5 @@
 using GagauziaChatBot.Core.Services.CommandsService;
+using GagauziaChatBot.Core.Services.DiscountsService;
 using GagauziaChatBot.Core.Services.NewsService;
 using Telegram.Bot;
 using Telegram.Bot.Polling;
@@ -7,7 +8,7 @@ using Telegram.Bot.Exceptions;
 
 namespace GagauziaChatBot.Core.Services;
 
-public class BotService(ITelegramBotClient botClient, CancellationToken cancellationToken, ICommandService commandService, INewsService newsService)
+public class BotService(ITelegramBotClient botClient, CancellationToken cancellationToken, ICommandService commandService, INewsService newsService, IDiscountsService discountsService)
 {
     public void StartReceiving()
     {
@@ -28,6 +29,11 @@ public class BotService(ITelegramBotClient botClient, CancellationToken cancella
     public void StartNewsPostingJob()
     { 
         newsService.StartNewsPostingAsync(cancellationToken);
+    }
+
+    public void StartDiscountsPostingJob()
+    {
+        discountsService.PublishCatalogAsync(cancellationToken);
     }
 
     private async Task HandleUpdateAsync(ITelegramBotClient localBotClient, Update update, CancellationToken ctx)
