@@ -21,7 +21,7 @@ internal static class Program
 
         var cts = new CancellationTokenSource();
         var botClient = new TelegramBotClient(botToken);
-        //await botClient.DeleteWebhook(cancellationToken: cts.Token);
+        await botClient.DeleteWebhook(cancellationToken: cts.Token);
         var commandService = new CommandService(botClient);
         var newsService = new NewsService(botClient);
         var discountsService = new DiscountsService(botClient);
