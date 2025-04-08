@@ -63,7 +63,7 @@ internal static class Program
             var playwright = await Playwright.CreateAsync();
             Console.WriteLine("Playwright создан.");
 
-            var browser = await playwright.Firefox.LaunchAsync(new BrowserTypeLaunchOptions { Headless = true });
+            var browser = await playwright.Chromium.LaunchAsync(new BrowserTypeLaunchOptions { Headless = true });
             Console.WriteLine("Браузер запущен.");
 
             var page = await browser.NewPageAsync();
