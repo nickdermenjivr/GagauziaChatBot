@@ -176,7 +176,7 @@ public class CommandService : ICommandService
     
     private async Task<bool> RestrictMessageInThreads(Message message, CancellationToken ct)
     {
-        if (message.Chat.Id != TelegramConstants.GagauziaChatId) return false;
+        if (message.Chat.Id != TelegramConstants.GagauziaChatId || message.From!.Username == "@sweetlykavun") return false;
         
         var isMainThread = message.MessageThreadId == null 
                             || message.MessageThreadId == TelegramConstants.MainThreadId;
@@ -185,37 +185,39 @@ public class CommandService : ICommandService
         { 
             //TelegramConstants.CarpoolingThreadId,
             //TelegramConstants.MarketplaceThreadId,
-            TelegramConstants.PrivateServicesThreadId
+            //TelegramConstants.PrivateServicesThreadId,
+            TelegramConstants.DiscountsThreadId,
+            TelegramConstants.NewsThreadId
         };
 
-        var shouldRestrict = isMainThread || 
-                              (message.MessageThreadId.HasValue && 
-                               restrictedThreadIds.Contains(message.MessageThreadId.Value));
+        var shouldDeleteMessage = isMainThread || 
+                                  (message.MessageThreadId.HasValue && 
+                                   restrictedThreadIds.Contains(message.MessageThreadId.Value));
+        var shouldRestrict = !isMainThread;
 
-        if (!shouldRestrict)
-            return false;
-
+        if (!shouldDeleteMessage) return false;
         try
         {
             await _botClient.DeleteMessage(
                 chatId: message.Chat.Id,
                 messageId: message.MessageId,
                 cancellationToken: ct);
+            
+            var chatInfo = await _botClient.GetChat(message.Chat.Id, ct);
+            await _botClient.SendMessage(
+                chatId: message.From!.Id,
+                text: $"✋ В {(isMainThread ? "основном чате" : "разделе")} {chatInfo.Title} " +
+                      "можно писать только через бота.\nИспользуйте /menu",
+                cancellationToken: ct);
 
+            if (!shouldRestrict) return false;
             await _botClient.RestrictChatMember(
                 chatId: message.Chat.Id,
                 userId: message.From!.Id,
                 permissions: new ChatPermissions { CanSendMessages = false },
                 untilDate: DateTime.UtcNow.AddMinutes(1),
                 cancellationToken: ct);
-
-            var chatInfo = await _botClient.GetChat(message.Chat.Id, ct);
-            await _botClient.SendMessage(
-                chatId: message.From.Id,
-                text: $"✋ В {(isMainThread ? "основном чате" : "разделе")} {chatInfo.Title} " +
-                      "можно писать только через бота.\nИспользуйте /menu",
-                cancellationToken: ct);
-
+            
             return true;
         }
         catch (ApiRequestException ex) when (ex.ErrorCode == 400 || ex.ErrorCode == 403)
