@@ -16,7 +16,7 @@ public class DiscountsService : IDiscountsService
     private readonly List<DiscountsBackgroundTask> _tasks = [];
     private readonly TimeSpan _startTime = new(6, 0, 0);
     private readonly TimeSpan _endTime = new(20, 0, 0);
-    private readonly TimeSpan _updateInterval = TimeSpan.FromDays(2);
+    private readonly TimeSpan _updateInterval = TimeSpan.FromDays(1);
     private readonly TimeSpan _taskDelayInterval = TimeSpan.FromMinutes(15);  // Интервал между задачами
 
     public DiscountsService(ITelegramBotClient botClient)
