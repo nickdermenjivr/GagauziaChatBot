@@ -4,29 +4,35 @@ namespace GagauziaChatBot.Core.Services.DiscountsService;
 
 public class DiscountsService : IDiscountsService
 {
-    private readonly Dictionary<string, (string Url, string StoreName)> _discountSources = new()
+    private readonly Dictionary<string, (string MainUrl, string StoreName)> _discountSources = new()
     {
-        { "linella", ("https://mooldo.com/ru/catalog/linella/4229/katalog-skidok", "Линелла") },
-        { "local", ("https://mooldo.com/ru/catalog/local-discounter/4232/katalog-skidok", "Локал") },
-        {"chip", ("https://mooldo.com/ru/catalog/cip-market/4224/katalog-skidok", "Чип")},
-        {"bomba", ("https://mooldo.com/ru/catalog/bomba/4199/vesna-v-bomba-nacinaetsya-s-vygodnyx-predlozenii-i-novinok", "Бомба")},
-        {"kaufland", ("https://mooldo.com/ru/catalog/kaufland/4306/katalog-skidok", "Кауфлэнд")},
+        {"linella", ("https://mooldo.com/ru/shops/linella", "Линелла") },
+        {"local", ("https://mooldo.com/ru/shops/local-discounter", "Локал") },
+        {"kaufland", ("https://mooldo.com/ru/shops/kaufland", "Кауфлэнд") },
+        {"alcomarket", ("https://mooldo.com/ru/shops/alcomarket", "Алкомаркет") },
+        {"cip", ("https://mooldo.com/ru/shops/cip-market", "Чип") },
+        {"dulcinella", ("https://mooldo.com/ru/shops/dulcinella", "Дулчинелла") },
+        {"bomba", ("https://mooldo.com/ru/shops/bomba", "Бомба") },
+        {"cleber", ("https://mooldo.com/ru/shops/cleber-md", "Клебер") },
     };
 
     private readonly List<DiscountsBackgroundTask> _tasks = [];
+
+    private readonly DiscountCache _discountCache = new();
     private readonly TimeSpan _startTime = new(6, 0, 0);
     private readonly TimeSpan _endTime = new(20, 0, 0);
     private readonly TimeSpan _updateInterval = TimeSpan.FromDays(1);
-    private readonly TimeSpan _taskDelayInterval = TimeSpan.FromMinutes(15);  // Интервал между задачами
+    private readonly TimeSpan _taskDelayInterval = TimeSpan.FromMinutes(30);  // Интервал между задачами
 
     public DiscountsService(ITelegramBotClient botClient)
     {
-        foreach (var (_, (url, store)) in _discountSources)
+        foreach (var (_, (mainUrl, store)) in _discountSources)
         {
             var task = new DiscountsBackgroundTask(
                 botClient: botClient,
-                pageUrl: url,
+                pageUrl: mainUrl,
                 storeName: store,
+                discountCache: _discountCache,
                 maxImages: 10,
                 interval: _updateInterval,
                 startTime: _startTime,

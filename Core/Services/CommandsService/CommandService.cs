@@ -176,7 +176,7 @@ public class CommandService : ICommandService
     
     private async Task<bool> RestrictMessageInThreads(Message message, CancellationToken ct)
     {
-        if (message.Chat.Id != TelegramConstants.GagauziaChatId || message.From!.Username == "@sweetlykavun") return false;
+        if (message.Chat.Id != TelegramConstants.GagauziaChatId || message.From!.Username == "Sweetlykavun") return false;
         
         var isMainThread = message.MessageThreadId == null 
                             || message.MessageThreadId == TelegramConstants.MainThreadId;

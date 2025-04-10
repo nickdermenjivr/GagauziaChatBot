@@ -8,14 +8,12 @@ public class DiscountsBackgroundTask(
     ITelegramBotClient botClient,
     string pageUrl,
     string storeName,
+    DiscountCache discountCache,
     int maxImages,
     TimeSpan interval,
     TimeSpan startTime,
     TimeSpan endTime)
 {
-    private readonly DiscountCache _discountCache = new(); // Инициализация кэша скидок
-        // Добавлен кэш скидок
-
     private readonly HttpClient _httpClient = new();
     private readonly string _tempFolder = Path.Combine(Path.GetTempPath(), "TelegramCatalogs");
 
@@ -31,7 +29,7 @@ public class DiscountsBackgroundTask(
 
                 if (IsWithinPublicationTime(now))
                 {
-                    await PublishCatalogAsync(ct);
+                    await PublishCatalogsAsync(ct);
                 }
                 else
                 {
@@ -50,14 +48,9 @@ public class DiscountsBackgroundTask(
 
     private bool IsWithinPublicationTime(TimeSpan currentTime)
     {
-        if (startTime < endTime)
-        {
-            return currentTime >= startTime && currentTime < endTime;
-        }
-        else
-        {
-            return currentTime >= startTime || currentTime < endTime;
-        }
+        return startTime < endTime
+            ? currentTime >= startTime && currentTime < endTime
+            : currentTime >= startTime || currentTime < endTime;
     }
 
     private TimeSpan CalculateNextDelay()
@@ -66,50 +59,43 @@ public class DiscountsBackgroundTask(
         var today = DateTime.Today;
 
         if (IsWithinPublicationTime(now.TimeOfDay))
-        {
             return interval;
-        }
 
-        if (now.TimeOfDay >= endTime && startTime < endTime)
-        {
-            return today.AddDays(1).Add(startTime) - now;
-        }
-
-        if (now.TimeOfDay < startTime)
-        {
-            return today.Add(startTime) - now;
-        }
-
-        return today.AddDays(1).Add(startTime) - now;
+        return now.TimeOfDay < startTime
+            ? today.Add(startTime) - now
+            : today.AddDays(1).Add(startTime) - now;
     }
 
-    private async Task PublishCatalogAsync(CancellationToken ct)
+    private async Task PublishCatalogsAsync(CancellationToken ct)
     {
-        var downloadedImages = new List<string>();
-
         try
         {
-            var (imageUrls, promoText) = await DiscountsParser.ExtractImageUrlsAndPromoText(pageUrl, maxImages);
-        
-            // Используем promoText как период акции
-            var promoPeriod = promoText; 
+            var posts = await DiscountsParser.ExtractPostsFromMainPage(pageUrl, maxImages);
 
-            // Проверяем, была ли уже опубликована скидка для этого магазина и периода
-            if (_discountCache.Contains(storeName, promoPeriod))
+            foreach (var (imageUrls, promoText) in posts)
             {
-                Console.WriteLine($"{storeName}: Скидка уже была опубликована для этого периода.");
-                return; // Пропускаем публикацию
+                if (discountCache.Contains(storeName, promoText))
+                {
+                    Console.WriteLine($"{storeName}: Скидка уже опубликована для периода: {promoText}");
+                    continue;
+                }
+
+                var downloadedImages = await DownloadImages(imageUrls, ct);
+                try
+                {
+                    await SendToTelegram(downloadedImages, storeName, promoText, ct);
+                    discountCache.Add(storeName, promoText);
+                }
+                finally
+                {
+                    CleanupTempFiles(downloadedImages);
+                }
+                await Task.Delay(30000, ct);
             }
-
-            downloadedImages = await DownloadImages(imageUrls, ct);
-            await SendToTelegram(downloadedImages, storeName, promoPeriod, ct);
-
-            // Добавляем скидку в кэш после публикации
-            _discountCache.Add(storeName, promoPeriod);
         }
-        finally
+        catch (Exception ex)
         {
-            CleanupTempFiles(downloadedImages);
+            Console.WriteLine($"[{storeName}] Ошибка при публикации каталогов: {ex.Message}");
         }
     }
 
@@ -117,9 +103,9 @@ public class DiscountsBackgroundTask(
     {
         var result = new List<string>();
 
-        foreach (var (url, i) in imageUrls.Select((u, i) => (u, i)))
+        foreach (var (url, _) in imageUrls.Select((u, i) => (u, i)))
         {
-            var filePath = Path.Combine(_tempFolder, $"discount_{i}.jpg");
+            var filePath = Path.Combine(_tempFolder, $"discount_{Guid.NewGuid()}.jpg");
 
             try
             {
